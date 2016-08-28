@@ -1,0 +1,24 @@
+.css_category_header {
+    @nest h1& {
+        margin-bottom: 5px;
+        font-size: 2em;
+    }
+    @nest h2& {
+        margin-top: 80px;
+        font-size: 1.75em;
+    }
+    @nest h3& {
+        margin-top: 40px;
+        font-size: 1.45em;
+    }
+    @nest h5& {
+        font-size: 1.09em;
+    }
+
+    font-weight: 300;
+
+    margin-bottom: 5px;
+    @nest .css_category:first-of-type > & {
+        margin-top: 15px;
+    }
+}

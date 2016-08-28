@@ -1,0 +1,82 @@
+:root {
+    --footer_height: 70px;
+}
+
+.css_header {
+    color: #3a3a3a;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+
+    & .css_login_button {
+        margin-top: 8px;
+    }
+
+    & .css_header_top {
+        display: flex;
+        margin: 0;
+        height: 65px;
+        vertical-align: middle;
+        align-items: center;
+        width: 100%;
+
+    }
+
+    & .css_userinfo {
+        flex: 1;
+        text-align: center;
+    }
+
+    & .css_tag_list {
+        margin: 10px;
+    }
+
+    & .css_header_content {
+        position: relative;
+        padding-bottom: var(--footer_height);
+        min-height: 100%;
+    }
+
+    & .css_header_footer {
+        position: absolute;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        bottom: 0;
+        height: var(--footer_height);
+        padding-bottom: 20px;
+        box-sizing: border-box;
+        width: 100%;
+    }
+
+}
+
+/* we have to use a wrapper because of custom scrollbar animation trick */
+.css_header_wrapper {
+    background-color: #eee;
+}
+
+/* custom scrollbar */
+@media screen and (-webkit-min-device-pixel-ratio:0) { /* trick to only apply in webkit */
+    .css_header {
+        &::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        &::-webkit-scrollbar-track {
+            display: none;
+        }
+        &::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+        }
+
+        /* transition on hover */
+        &::-webkit-scrollbar-thumb {
+            background-color: inherit;
+        }
+        background-color: rgba(0,0,0,0);
+        transition: background-color .8s;
+        -webkit-background-clip: text;
+        &:hover {
+            background-color: rgba(0,0,0,0.1);
+        }
+    }
+}

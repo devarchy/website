@@ -1,0 +1,7 @@
+node_modules/
+dist/
+npm-debug.log*
+/.env
+/server/bot
+/server/.logs/*
+!/server/.logs/placeholder

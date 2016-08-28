@@ -1,0 +1,64 @@
+.css_description_label {
+    color: #999;
+    font-size: 0.9rem;
+    margin-top: 13px;
+    margin-bottom: 4px;
+}
+
+[disabled] button,
+button[disabled] {
+    &.css_da {
+        & > * {
+            opacity: 0.2 !important;
+        }
+    }
+    &, & * {
+        &.css_da.css_color_contrib {
+            color: inherit;
+        }
+    }
+}
+.css_saving button,
+button.css_saving {
+    &.css_da:not(.css_sidebutton) {
+        @apply --loading_icon__middle;
+    }
+}
+button,
+button *,
+{
+    &.css_da.css_color_contrib {
+        transition: color 0.5s;
+    }
+}
+
+fieldset.css_da {
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+
+.css_input_wrapper {
+    background-color: transparent;
+    border: 1px solid rgba(0,0,0,0.08);
+    cursor: text;
+    padding: 7px 10px;
+    display: inline-flex;
+    border-radius: 3px;
+    & > input {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        width: 10px;
+        flex: 1;
+        font-family: inherit;
+    }
+    &,
+    & > input {
+        font-size: 14px;
+    }
+
+    & > .css_input_wrapper__prefix {
+        color: #4f4f4f;
+    }
+}

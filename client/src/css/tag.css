@@ -1,0 +1,22 @@
+:root {
+    --icon_width: 30px;
+}
+
+.css_tag {
+    display: block;
+    position: relative;
+    margin: 10px 0;
+    padding-right: 10px;
+    padding-left: var(--icon_width);
+    color: #444;
+    font-size: 1.4rem;
+
+    & .css_tag_icon {
+        position: absolute;
+        width: var(--icon_width);
+        margin-left: calc(var(--icon_width) * -1);
+        height: 100%;
+        display: block;
+        text-align: center;
+    }
+}

@@ -1,0 +1,64 @@
+html.css_da {
+    color: #333;
+    font-size: 0.9em;
+}
+html.css_da > body {
+    font-family: 'Roboto', sans-serif;
+}
+
+h1, h2, h3, h4, h5 {
+    &.css_da {
+        font-weight: normal;
+    }
+}
+
+h1, h2 {
+    &.css_da {
+        font-weight: 300;
+        display: inline-block;
+        vertical-align: middle;
+    }
+}
+h1.css_da {
+    font-size: 1.7em;
+}
+h2.css_da {
+    font-size: 1.55em;
+}
+
+h6.css_da {
+    opacity: 0.6;
+    font-size: .75rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+html a.css_da {
+    &, &:hover, &:focus {
+        color: #aaa;
+    }
+}
+
+code.css_da {
+    font-family: monospace;
+    border-radius: 3px;
+    &:not(.css_inline) {
+        font-size: 12px;
+        padding: 0.2em;
+        background-color: rgba(0,0,0,0.04);
+    }
+    &.css_inline {
+        padding: 0.1em 0.45em;
+        font-size: 1.09em;
+        background-color: rgba(0,0,0,0.06);
+    }
+}
+
+.css_p {
+    margin: 1em 0;
+}
+
+.css_note {
+    font-size: 0.9em;
+    color: #575757;
+}

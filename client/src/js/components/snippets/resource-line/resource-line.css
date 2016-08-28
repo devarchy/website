@@ -1,0 +1,61 @@
+.css_resource_body {
+
+    width: 100%;
+    white-space: normal;
+    cursor: initial;
+
+    & .css_resource_details,
+    & .css_resource_details__loading {
+        box-shadow: 1px 2px 4px #ddd;
+        background-color: #FBF9DE;
+        margin: 15px;
+        margin-top: 5px;
+        padding: 0 20px;
+    }
+    & .css_resource_details__loading {
+        padding: 20px;
+        text-align: center;
+    }
+
+}
+
+
+.css_resource_header {
+
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+
+    & .css_resource_header__stars {
+        display: inline-block;
+        width: 50px;
+        text-align: right;
+        &::after {
+            color: #aaa;
+            content: " \2605";
+        }
+    }
+    & .css_resource_header__date {
+        display: inline-block;
+        width: 75px;
+        text-align: right;
+        font: normal normal normal 14px/1 FontAwesome;
+        &::after {
+            color: #aaa;
+            content: " \f271";
+        }
+    }
+    & .css_resource_header__name {
+        display: inline;
+        padding-left: 10px;
+    }
+    & .css_resource_header__description {
+        display: inline;
+        padding-left: 6px;
+        color: #aaa;
+        font-size: 0.9em;
+    }
+
+}

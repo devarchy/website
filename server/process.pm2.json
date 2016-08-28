@@ -1,0 +1,19 @@
+{
+  "name": "server",
+  "script": "index.js",
+  "instances": 0,
+  "exec_mode": "cluster",
+  "env": {
+    "NODE_ENV": "development",
+    "SERVER_DOWN": "",
+    "watch": true
+  },
+  "env_production" : {
+     "NODE_ENV": "production",
+     "SERVER_DOWN": "",
+     "watch": false
+  },
+  "env_maintenance" : {
+     "SERVER_DOWN": "Devarchy is offline for an update. It will be back online in couple of minutes."
+  }
+}
