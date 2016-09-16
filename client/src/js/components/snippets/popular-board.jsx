@@ -11,7 +11,6 @@ import ResourceListSnippet from '../snippets/resource-list';
 
 
 const PopularResourcesSnippet = ({i, text, resource_list_data})  => {
-
     if( resource_list_data.resource_list.length === 0 ) {
         return null;
     }
@@ -34,8 +33,11 @@ const PopularResourcesSnippet = ({i, text, resource_list_data})  => {
 };
 PopularResourcesSnippet.get_props = ({age_max, age_min, text, i, resource_list, resource_requests, tag, awaiting_approval='EXCLUDE'}) => {
     assert(['ONLY', 'EXCLUDE'].includes(awaiting_approval));
+
+    const is_request = awaiting_approval === 'ONLY';
+
     const resources = (() => {
-        if( awaiting_approval === 'ONLY' ) {
+        if( is_request ) {
             return resource_requests;
         }
         return (
@@ -49,7 +51,7 @@ PopularResourcesSnippet.get_props = ({age_max, age_min, text, i, resource_list, 
     return {
         i,
         text,
-        resource_list_data: ResourceListSnippet.get_props({resource_list: resources, date_column_first: false,}),
+        resource_list_data: ResourceListSnippet.get_props({resource_list: resources, is_request}),
     }
 };
 
@@ -103,7 +105,7 @@ export default {
                     },
                     {
                         awaiting_approval: 'ONLY',
-                        text: "Awaiting approval",
+                        text: "Awaiting upvotes",
                     },
                 ]
                 .map((spec, i) =>

@@ -8,54 +8,73 @@
     & .css_resource_details__loading {
         box-shadow: 1px 2px 4px #ddd;
         background-color: #FBF9DE;
+        padding: 0 13px;
         margin: 15px;
         margin-top: 5px;
-        padding: 0 20px;
+        @nest .css_resource_request & {
+            margin-left: 0px;
+        }
     }
     & .css_resource_details__loading {
         padding: 20px;
         text-align: center;
     }
-
 }
 
 
-.css_resource_header {
-
+.css_resource {
     width: 100%;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     cursor: pointer;
+}
 
-    & .css_resource_header__stars {
-        display: inline-block;
-        width: 50px;
-        text-align: right;
-        &::after {
-            color: #aaa;
-            content: " \2605";
-        }
-    }
-    & .css_resource_header__date {
-        display: inline-block;
-        width: 75px;
-        text-align: right;
-        font: normal normal normal 14px/1 FontAwesome;
-        &::after {
-            color: #aaa;
-            content: " \f271";
-        }
-    }
-    & .css_resource_header__name {
-        display: inline;
-        padding-left: 10px;
-    }
-    & .css_resource_header__description {
-        display: inline;
-        padding-left: 6px;
+
+.css_resource_header__stars {
+    display: inline-block;
+    width: 50px;
+    text-align: right;
+    &::after {
         color: #aaa;
-        font-size: 0.9em;
+        content: " \2605";
     }
+}
+.css_resource_header__date {
+    display: inline-block;
+    width: 75px;
+    text-align: right;
+    font-size: 0.9em;
+    &::after {
+        font-family: FontAwesome;
+        color: #aaa;
+        content: " \f271";
+    }
+}
+.css_resource_header__name {
+    display: inline;
+    padding-left: 10px;
+    font-size: 1.05em;
+}
+.css_resource_header__description {
+    display: inline;
+    padding-left: 6px;
+    color: #999;
+    font-size: 13.33333px;
+}
 
+
+.css_resource_request {
+    margin-bottom: 5px;
+}
+.css_resource_header__request_name {
+    display: inline;
+    font-size: 1.1em;
+    color: #888;
+    padding-left: 3px;
+    font-size: 0.9em;
+}
+.css_resource_header__request_description {
+    display: inline;
+    font-size: 13.33333px;
 }

@@ -21,6 +21,7 @@ module.exports = {
     },
     user: {
         get_info: get_user_info,
+        get_emails: get_user_emails,
     },
     url: 'https://github.com/',
 };
@@ -64,6 +65,11 @@ const http_cached = long_term_cache({
 
 function get_user_info({login, max_delay}) {
     return request({path: 'users/'+login, max_delay});
+}
+
+function get_user_emails({auth_token, max_delay}) {
+    assert(auth_token);
+    return request({path: 'user/emails?access_token='+auth_token, max_delay});
 }
 
 function get_repository_info({full_name, max_delay, expected_status_codes}) {

@@ -11,6 +11,9 @@ html.css_da {
     & label {
         cursor: pointer;
     }
+    & [disabled] label {
+        cursor: default;
+    }
 
     & a {
         &, &:hover, &:focus {

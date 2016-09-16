@@ -2,6 +2,9 @@ import assert from 'assert';
 import validator from 'validator';
 import {is_npm_package_name_valid} from '../util/npm';
 import clean_sentence from 'clean-sentence'
+import mixin from './mixin/mixin.decorator.js';
+import CommentableMixin from './mixin/commentable';
+import VotableMixin from './mixin/votable';
 import Thing from './thing.js';
 import Tag from './tag.js';
 import Promise from 'bluebird';
@@ -9,6 +12,8 @@ Promise.longStackTraces();
 
 const map__github_full_name = {};
 
+@mixin(CommentableMixin)
+@mixin(VotableMixin)
 class Resource extends Thing {
     constructor(...args) {
         super(...args);
@@ -20,7 +25,7 @@ class Resource extends Thing {
 
     get description() { 
         let desc = (this.npm_info||{}).description || this.github_info.description;
-        desc = clean_sentence(desc||'');
+        desc = clean_sentence(desc||'', {remove_emojis: true, remove_urls: true});
         return desc;
     } 
 
@@ -36,51 +41,47 @@ class Resource extends Thing {
         );
     } 
 
-    get tags () { 
+    get tags_all() { 
         const tags =
-            this.referrers
-            .filter(r => r.type==='tagged')
-            .filter(r => ! r.removed)
-            .map(tagged => {
-                // we don't use `Thing.things.id_map` because of key propagation mechanism
-                const tag = Thing.things.all.find(t => t.type === 'tag' && t.id === tagged.referred_tag);
-                assert(tag);
-                return tag;
-            });
-        // this basically makes sure that we call this function only if we have retrieved the view of `this`
-        assert(this.preview.tags.every(tag_name => !!tags.find(tag => tag.name === tag_name)));
+            this.preview.tags
+            .map(tagname => Tag.get_by_name(tagname));
+
+        assert(tags.every(t => !!t));
+        assert(tags.every(t => !t.is_markdown_category));
         return tags;
     } 
 
     get tagrequests() { 
-        return this.preview.tagreqs.map(tagname => {
-            const tag = Tag.get_by_name(tagname);
-            assert(tag);
-            return tag;
-        });
+        return (
+            this.preview.tagreqs
+            .map(({tagname, category}) => {
+                const tag__markdown_list = Tag.get_by_name(tagname);
+                assert(tag__markdown_list, 'could not find a Thing.tag instance for `'+tagname+'`');
+                assert(tag__markdown_list.is_markdown_list);
+                const tag__category_id = Tag.category__get_global_id(category, tag__markdown_list.id);
+                const tag__category = Tag.get_by_name(tag__category_id);
+                assert(tag__category);
+                return tag__category;
+            })
+            .filter(tag => {
+                assert(tag);
+                assert(tag.is_markdown_category);
+                return !tag.tagged_resources.find(({github_full_name}) => this.github_full_name === github_full_name);
+            })
+        );
     } 
 
-    get taggedreviews() { 
-        return (
-            this
-            .referrers
-            .filter(referrer => referrer.type === 'tagged' && !!referrer.tagrequest)
-            .map(tagged => {
-                const tag = Thing.get_by_id(tagged.referred_tag);
-                assert(tag);
-                assert(tag.constructor === Tag);
-                const reviews = tagged.referrers.filter(r => r.type === 'taggedreview')
-                assert(reviews.length>0);
-                const category_tag = Thing.get_by_id(tagged.tagrequest);
-                assert(category_tag && category_tag.is_markdown_category);
-                return {
-                    tag,
-                    tagged,
-                    category_tag,
-                    reviews,
-                };
-            })
-        )
+    get_category_request(tag) { 
+        assert(tag.is_markdown_list);
+        const categories = this.preview.tagreqs.filter(({tagname}) => tagname === tag.name);
+        assert(categories.length>0, tag.name+' not found in '+JSON.stringify(this.preview.tagreqs, null, 2));
+        assert(categories.length===1);
+        const category_id = categories[0].category;
+        const category_id_global = Tag.category__get_global_id(category_id, tag.id);
+        assert(category_id);
+        const category = Tag.get_by_name(category_id_global);
+        assert(category, category_id_global+' not found');
+        return category;
     } 
 
     is_tagged_with(tag, options) { 
@@ -175,6 +176,16 @@ class Resource extends Thing {
         return this.preview.tagreqs.includes(tag__markdown_category.name);
     } 
 
+    get logged_user_is_owner() { 
+        const repo = this.github_full_name.split('/');
+        assert(repo.length===2);
+        const repo_owner = repo[0];
+        if( ! Thing.things.logged_user ) {
+            return false;
+        }
+        return Thing.things.logged_user.github_login.toLowerCase() === repo_owner.toLowerCase();
+    } 
+
     static retrieve_view (github_full_name) { 
         assert(github_full_name);
         return Thing.load.view([{
@@ -193,10 +204,10 @@ class Resource extends Thing {
         return super.retrieve_by_props({github_full_name});
     } 
 
-    static list_things ({age_min = 0, age_max = Infinity, tags = [], newest=false, list, awaiting_approval}={}) { 
+    static list_things ({age_min = 0, age_max = Infinity, tags = [], order, list, awaiting_approval}={}) { 
 
         return super.list_things({
-            newest,
+            order,
             list,
             filter_function: resources => {
                 if( age_min !== 0 || age_max !== Infinity ) {
@@ -229,7 +240,14 @@ class Resource extends Thing {
         return super.retrieve_things({preview: {tags: [tag_name]}});
     } 
 
-    static order({newest}) { 
+    static order({newest, latest_requests}) { 
+        if( latest_requests ) {
+            return {
+                sort_function: (thing1, thing2) => new Date(thing2.created_at) - new Date(thing1.created_at),
+            };
+            // equivalent but less efficient:
+            // return ['created_at',];
+        }
         if( newest ) {
             return {
                 sort_function: (thing1, thing2) => {
@@ -270,32 +288,32 @@ class Resource extends Thing {
         .then(infos => {
             assert( infos );
             assert( infos.resource && infos.resource.constructor === Resource );
-            return new Thing({
-                type: 'tagged',
-                referred_resource: infos.resource.id,
-                referred_tag: tag__markdown_list.id,
-                tagrequest: tag__category.id,
-                author: Thing.things.logged_user.id,
-                draft: {},
-            }).draft.save()
-            .then(([tagged]) => {
-                assert( tagged );
-                assert( tagged.type === 'tagged' );
-                return new Thing({
-                    type: 'taggedreview',
-                    referred_tagged: tagged.id,
+            return Promise.all([
+                new Thing({
+                    type: 'tagged',
+                    referred_resource: infos.resource.id,
+                    referred_tag: tag__markdown_list.id,
+                    tagrequest: tag__category.category_id,
+                    removed: false,
+                    draft: {
+                        author: Thing.things.logged_user.id,
+                    },
+                }).draft.save(),
+                new Thing({
+                    type: 'genericvote',
+                    vote_type: 'upvote',
+                    referred_thing: infos.resource.id,
                     author: Thing.things.logged_user.id,
                     draft: {},
-                }).draft.save();
-            });
+                }).draft.save(),
+            ]);
         })
         .then(() => {});
     } 
 
     static get result_fields() { 
-        return [
-            'id',
-            'type',
+        return super.result_fields.concat([
+            'created_at',
             'github_full_name',
             'npm_package_name',
             'npm_info.description',
@@ -306,7 +324,7 @@ class Resource extends Thing {
             'github_info.pushed_at',
             'github_info.homepage',
             'github_info.stargazers_count',
-        ];
+        ]);
     } 
 };
 

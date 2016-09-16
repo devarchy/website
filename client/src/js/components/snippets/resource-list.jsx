@@ -30,11 +30,11 @@ const ResourceListSnippet = React.createClass({
 
 export default {
     component: ResourceListSnippet,
-    get_props: ({resource_list, date_column_first, resources_none_component}) => ({
+    get_props: ({resource_list, date_column_first, resources_none_component, addition_request_view, is_request}) => ({
         resource_list:
             resource_list.map(resource => ({
                 key:resource.key,
-                props: ResourceLineSnippet.get_props({resource, date_column_first}),
+                props: ResourceLineSnippet.get_props({resource, date_column_first, addition_request_view, is_request}),
             })),
         resources_none_component,
     }),

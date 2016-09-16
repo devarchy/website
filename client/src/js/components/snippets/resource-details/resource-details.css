@@ -15,7 +15,8 @@
         margin-bottom: 16px;
         font-size: 1.3em;
         &:first-of-type {
-            margin-top: 3px;
+            padding-top: 3px;
+            margin-top:7px;
         }
         &:not(:first-of-type) {
             margin-top: 36px;

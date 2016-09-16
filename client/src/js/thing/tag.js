@@ -26,16 +26,54 @@ class Tag extends Thing {
     get display_title() { 
         return (
             this.title ||
-            (this.markdown_list__data||{}).text ||
+            markdow_list_name(this.markdown_list__github_full_name) ||
             this.name
+        );
+
+        function markdow_list_name(markdown_list__github_full_name) {
+            if( ! markdown_list__github_full_name ) {
+                return null;
+            }
+            return (
+                markdown_list__github_full_name
+                .split('/')[1]
+                .split('-')
+                .filter(str => str.length > 0)
+                .map(str => str.length < 4 ? str : str.slice(0,1).toUpperCase()+str.slice(1))
+                .join(' ')
+            );
+        }
+    } 
+
+    display_category({without_root}={}) { 
+        assert(this.is_markdown_category);
+        return (
+            this
+            .ancestor_tags
+            .reverse()
+            .slice(without_root?1:0)
+            .concat(this)
+            .map(ancestor => ancestor.display_title)
+            .join(' > ')
         );
     } 
 
-    get display_title__strip_awesome() { 
-        return (
-            this.display_title.replace(/^awesome /i,'')
-        )
-    } 
+    get description__manipulated() {
+        if( this.markdown_list__github_full_name === 'brillout/awesome-redux' ) {
+            return 'Catalog of Redux libraries.';
+        }
+        return this.description;
+    }
+    get display_title__maniuplated(){
+        if( this.markdown_list__github_full_name === 'brillout/awesome-redux' ) {
+            return 'Redux Libraries';
+        }
+        return strip_awesome(this.display_title);
+
+        function strip_awesome(str) {
+            return str.replace(/^awesome /i,'');
+        }
+    }
 
     get child_tags() { 
         assert(this.id);
@@ -81,11 +119,11 @@ class Tag extends Thing {
             this.parent_tag.depth+1 : 0;
     } 
 
-    get resource_requests() { 
+    get resource_reqs() { 
         assert( this.is_markdown_list );
         assert( this.markdown_list__data );
         return (
-            Resource.list_things({tags: [this], newest: true})
+            Resource.list_things({tags: [this], order: {latest_requests: true}})
             .filter(resource =>
                 resource
                 .tagrequests
@@ -133,15 +171,21 @@ class Tag extends Thing {
     } 
 
     static get result_fields() { 
-        return [
-            'id',
-            'type',
+        return super.result_fields.concat([
             'name',
             'definition',
             'markdown_list__data',
             'markdown_list__github_full_name',
             'markdown_list__description',
-        ];
+        ]);
+    } 
+
+    static category__get_global_id(category_id, tag_id) { 
+        assert(category_id);
+        assert(tag_id);
+        return (
+            tag_id + '_' + category_id
+        );
     } 
 };
 

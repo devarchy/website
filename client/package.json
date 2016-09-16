@@ -15,6 +15,7 @@
     "react": "^15.3.0",
     "react-collapse": "^2.3.3",
     "react-dom": "^15.3.0",
+    "react-flip-move": "^2.4.2",
     "react-height": "^2.1.1",
     "react-icons": "^2.2.1",
     "react-motion": "^0.4.4",

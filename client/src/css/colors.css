@@ -1,9 +1,18 @@
 .css_color_red {
     color: #bd362f;
 }
-.css_color_contrib {
-    color: #00B76E;
-}
 .css_color_green {
     color: #009a46;
+}
+.css_color_contrib {
+    /*
+    color: #00B76E;
+    */
+    color: #00a563;
+}
+.css_color_contrib_dark {
+    color: #00a965;
+}
+.css_color_contrib_light {
+    color: #5ab592
 }

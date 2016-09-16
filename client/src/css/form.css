@@ -5,33 +5,6 @@
     margin-bottom: 4px;
 }
 
-[disabled] button,
-button[disabled] {
-    &.css_da {
-        & > * {
-            opacity: 0.2 !important;
-        }
-    }
-    &, & * {
-        &.css_da.css_color_contrib {
-            color: inherit;
-        }
-    }
-}
-.css_saving button,
-button.css_saving {
-    &.css_da:not(.css_sidebutton) {
-        @apply --loading_icon__middle;
-    }
-}
-button,
-button *,
-{
-    &.css_da.css_color_contrib {
-        transition: color 0.5s;
-    }
-}
-
 fieldset.css_da {
     padding: 0;
     margin: 0;
@@ -42,6 +15,9 @@ fieldset.css_da {
     background-color: transparent;
     border: 1px solid rgba(0,0,0,0.08);
     cursor: text;
+    @nest [disabled] & {
+        cursor: default;
+    }
     padding: 7px 10px;
     display: inline-flex;
     border-radius: 3px;
@@ -61,4 +37,46 @@ fieldset.css_da {
     & > .css_input_wrapper__prefix {
         color: #4f4f4f;
     }
+}
+
+[disabled].css_da {
+    @nest
+    button&,
+    & button {
+        &.css_primary_button > * {
+            opacity: 0.2 !important;
+        }
+        &.css_text_button {
+            /* rgba(51, 51, 51) == #333 */
+            color: rgba(51, 51, 51, 0.2);
+        }
+        &:not(.css_text_button):not(.css_primary_button) > * {
+            opacity: 0.4 !important;
+        }
+        & {
+            cursor: default;
+        }
+    }
+}
+
+
+[disabled] button *,
+button[disabled] * {
+    &.css_color_contrib,
+    &.css_color_contrib_dark,
+    &.css_color_contrib_light {
+        color: inherit;
+    }
+}
+
+
+button,
+button > * {
+    transition-property: opacity, color;
+    transition-duration: 0.5s;
+}
+
+.css_saving button.css_async_action_button,
+button.css_saving {
+    @apply --loading_icon__middle;
 }

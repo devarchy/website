@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LoadingSnippet = React.createClass({ 
+const LoadingSnippet = React.createClass({
     render: function(){
         return (
             <div
@@ -13,7 +13,7 @@ const LoadingSnippet = React.createClass({
             </div>
         );
     }
-}); 
+});
 
 export default {
     component: LoadingSnippet,

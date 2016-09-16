@@ -2,6 +2,7 @@ import React from 'react';
 import assert from 'assert';
 import classNames from 'classnames'
 
+import Thing from '../../../thing';
 import Resource from '../../../thing/resource';
 import pretty_print from '../../../util/pretty_print';
 
@@ -10,265 +11,106 @@ import rerender from '../../../rerender';
 import FaCheck from 'react-icons/lib/fa/check';
 import FaClose from 'react-icons/lib/fa/close';
 import FaPencil from 'react-icons/lib/fa/pencil';
+import FaInfo from 'react-icons/lib/fa/info';
 import UserSnippet from '../../snippets/user';
+import CommentListSnippet from '../../snippets/comment-list';
+import LoginRequired from '../../snippets/login-required';
 
 
-const TaggedReviewsSnippet = ({resource}) => { 
-    const taggedreviews = resource.taggedreviews;
-    return (
-        <div>{
-            taggedreviews.map(({tag, tagged, reviews, category_tag}) =>
-                <TaggedReviewSnippet
-                  key={tag.key}
-                  resource={resource}
-                  tag={tag}
-                  tagged={tagged}
-                  reviews={reviews}
-                  category_tag={category_tag}
-                />)
-        }</div>
-    );
-}; 
-
-const TaggedReviewSnippet = React.createClass({ 
-    propTypes: {
-        resource: React.PropTypes.object.isRequired,
-        tag: React.PropTypes.object.isRequired,
-        category_tag: React.PropTypes.object.isRequired,
-        reviews: React.PropTypes.array.isRequired,
-    },
-    getInitialState: function(){
-        const user_review = Thing.things.logged_user && this.props.reviews.filter(t => t.author === Thing.things.logged_user.id)[0];
-        return {
-            edit_mode: false,
-            saving: false,
-            form__is_rejection: user_review ? !!user_review.rejection_argument : null,
-            form__rejection_argument: (user_review||{}).rejection_argument || '',
-            validation__rejection_argument_is_missing: false,
-            validation__radio_is_missing: false,
-        };
-    },
-    toggle_edit_mode: function() {
-        event.preventDefault();
-        this.setState({edit_mode: !this.state.edit_mode});
-    },
-    handle_rejection_argument_change: function(event) {
-        const val = event.target.value;
-        this.setState({form__rejection_argument: val, validation__rejection_argument_is_missing: false});
-    },
-    handle_radio_change: function(event){
-        const val = event.target.value;
-        assert(["no", "yes"].includes(val));
-        this.setState({form__is_rejection: val==="yes"? true : false, validation__radio_is_missing: false});
-    },
-    submit_review: function(event){
-        event.preventDefault();
-        assert(this.props.resource.id);
-        assert(Thing.things.logged_user);
-        assert(Thing.things.logged_user.id);
-        const new_state = {
-            validation__rejection_argument_is_missing: this.state.form__is_rejection && this.state.form__rejection_argument.length === 0,
-            validation__radio_is_missing: this.state.form__is_rejection === null,
-        };
-        if( new_state.validation__rejection_argument_is_missing || new_state.validation__radio_is_missing ) {
-            this.setState(new_state);
-            return;
-        }
-        this.setState(Object.assign(new_state, {saving: true}));
-        const rejection_argument = this.state.form__is_rejection ? this.state.form__rejection_argument : null;
-        new Thing({
-            type: 'taggedreview',
-            referred_tagged: this.props.tagged.id,
-            author: Thing.things.logged_user.id,
-            rejection_argument,
-            draft: {},
-        }).draft.save()
-        .then(([request_review]) => {
-            assert(
-                !request_review.rejection_argument && !rejection_argument ||
-                request_review.rejection_argument === rejection_argument );
-            assert( this.props.resource.taggedreviews.filter(tagreq => tagreq.tagged.id === this.props.tagged.id && tagreq.rejection_argument === rejection_argument) );
-            rerender.carry_out();
-            if( ! this.isMounted() ) return;
-            this.setState({saving: false, edit_mode: false});
-        });
-    },
-    render: function(){
-        const taggedreviews = this.props.reviews;
-        const user_review = Thing.things.logged_user && taggedreviews.filter(t => t.author === Thing.things.logged_user.id)[0] || null;
-        const edit_view = this.state.edit_mode || ! user_review;
+const VoteSnippet = React.createClass({ 
+    render: function() {
         const resource = this.props.resource;
-        const tag__category = this.props.category_tag;
-        assert( tag__category.display_title );
-        return <div>
-            Should <code className="css_da css_inline">{resource.npm_package_name}</code> be included to
-            {' '}
-            <code className="css_da css_inline">{
-                tag__category
-                .ancestor_tags
-                .reverse()
-                .concat(tag__category)
-                .map(ancestor => ancestor.display_title)
-                .join(' > ')
-            }</code>
-            {' '}
-            ?
-            {
-                edit_view ? (
-                    <form className={classNames({css_saving: this.state.saving})} onSubmit={this.submit_review}>
-                        <fieldset className="css_da" disabled={!Thing.things.logged_user || this.state.saving}>
-                            <div style={{padding: '12px 0'}}>
-                                <label>
-                                    <input
-                                      type="radio"
-                                      name="rejection"
-                                      value="no"
-                                      defaultChecked={this.state.form__is_rejection===false}
-                                      onChange={this.handle_radio_change}
-                                      style={{verticalAlign: 'middle'}}
-                                    />
-                                    <FaCheck className="css_color_green" />
-                                    {' '}
-                                    <span style={{verticalAlign: 'middle'}}>Yes</span>
-                                </label>
-                                <label
-                                  style={{display: 'inline-block', marginLeft: 31}}
-                                >
-                                    <input
-                                      type="radio"
-                                      name="rejection"
-                                      value="yes"
-                                      defaultChecked={this.state.form__is_rejection===true}
-                                      onChange={this.handle_radio_change}
-                                      style={{verticalAlign: 'middle'}}
-                                    />
-                                    <FaClose className="css_color_red" />
-                                    {' '}
-                                    <span style={{verticalAlign: 'middle'}}>No</span>
-                                </label>
-                                {
-                                    this.state.validation__radio_is_missing &&
-                                        <div className="css_color_red" style={{marginTop: 10}}>
-                                            Select whether {resource.npm_package_name} should be included or not
-                                        </div>
-                                }
-                                {
-                                    this.state.form__is_rejection && (
-                                        <div>
-                                            <label>
-                                                <div className="css_description_label">
-                                                    This library should not be included because:
-                                                    {
-                                                        this.state.validation__rejection_argument_is_missing &&
-                                                            <span className="css_color_red">
-                                                                {' '}is required
-                                                            </span>
-                                                    }
-                                                </div>
-                                                <textarea
-                                                  autoFocus
-                                                  cols="50"
-                                                  rows="3"
-                                                  onChange={this.handle_rejection_argument_change}
-                                                  defaultValue={this.state.form__rejection_argument}
-                                                />
-                                            </label>
-                                        </div>
-                                    )
-                                }
-                            </div>
-                            <div>
-                                <button type="submit" className="css_da css_primary">
-                                    <span className="css_color_contrib css_da">Submit review</span>
-                                </button>
-                                {
-                                    this.state.edit_mode &&
-                                        <button
-                                          className="css_da css_secondary css_sidebutton"
-                                          type="button"
-                                          onClick={this.toggle_edit_mode}
-                                          style={{marginLeft: 20, fontSize: '1em'}}
-                                        >
-                                            <FaClose />
-                                            <span style={{verticalAlign: 'middle'}}>{' '}Cancel</span>
-                                        </button>
-                                }
-                            </div>
-                        </fieldset>
-                        {
-                            ! Thing.things.logged_user &&
-                                <div className="css_color_red" style={{marginTop: 10}}>
-                                    Log in required to review
-                                    <br/>
-                                    <a
-                                      style={{textDecoration: 'underline'}}
-                                      href="/auth/github"
-                                    >
-                                        <span
-                                          className="css_color_contrib"
-                                          style={{textDecoration: 'underline'}}
-                                        >
-                                            Log in with GitHub
-                                        </span>
-                                    </a>
-                                </div>
-                        }
-                    </form>
-                ) : (
-                    <div style={{padding: '12px 0'}}>
-                        <h6 className="css_da" style={{marginBottom: 6}}>Reviews</h6>
-                        {
-                            taggedreviews
-                            .map(request_review => <div key={request_review.id}>
-                                <div style={{display: 'inline-block', verticalAlign: 'middle', width: 115, overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                    <UserSnippet.component user_id={request_review.author} />
-                                </div>
-                                {
-                                    request_review.rejection_argument ?
-                                    (
-                                        <span>
-                                            <FaClose className="css_color_red" />
-                                            <span style={{verticalAlign: 'middle'}}>
-                                                {' '}
-                                                No
-                                                {': '}
-                                            </span>
-                                            <span style={{verticalAlign: 'middle'}}>
-                                                {request_review.rejection_argument}
-                                            </span>
-                                        </span>
-                                    ) : (
-                                        <span>
-                                            <FaCheck className="css_color_green" />
-                                            <span style={{verticalAlign: 'middle'}}>
-                                                {' '}
-                                                Yes
-                                            </span>
-                                        </span>
-                                    )
-                                }
-                                {
-                                    request_review.author === (Thing.things.logged_user||{}).id && (
-                                        <button
-                                          className="css_da css_secondary"
-                                          onClick={this.toggle_edit_mode}
-                                          style={{marginLeft: 16}}
-                                        >
-                                            <FaPencil />
-                                            {' '}
-                                            <span style={{verticalAlign: 'middle'}}>Edit</span>
-                                        </button>
-                                    )
-                                }
-                            </div>)
-                        }
-                        <div className="css_p css_note" style={{marginBottom: 0}}>
-                            After enough approvals, <code className="css_da css_inline">{resource.npm_package_name}</code> will be added.
+
+        assert(resource.votable);
+
+        const that = this;
+
+        const saving_vote = (that.state||{}).saving_vote;
+
+        const user_is_logged = !!Thing.things.logged_user;
+
+        const disabled = saving_vote!==undefined || !user_is_logged;
+
+        const upvote_btn = render_vote_button({is_negative: false});
+        const downvote_btn = render_vote_button({is_negative: true});
+
+        const upvotes = resource.preview.number_of_upvotes||0;
+        const downvotes = resource.preview.number_of_downvotes||0;
+
+        return (
+            <fieldset
+              className={classNames({
+                "css_saving": saving_vote!==undefined,
+                "css_da": true,
+              })}
+              style={{paddingTop: 8}}
+              disabled={disabled}
+            >{
+                this.props.request_view ?
+                    <div>
+                        { upvote_btn }{' '}{ downvote_btn }
+                    </div> :
+                    <div>
+                        <div className="css_note" style={{marginBottom: 7}}>
+                            {upvotes} upvote{upvotes===1?'':'s'}, {downvotes} downvote{downvotes===1?'':'s'}
+                        </div>
+                        <div>
+                            { upvote_btn }{' '}{ downvote_btn }
                         </div>
                     </div>
-                )
+            }</fieldset>
+        );
+
+        function render_vote_button({is_negative}) { 
+            const already_voted = resource.votable.upvote.user_did({is_negative});
+
+            return (
+                <button
+                    className={classNames({
+                      "css_primary_button": true,
+                      "css_dark_bg": true,
+                      "css_unpressed_button": !already_voted,
+                      "css_async_action_button": saving_vote===is_negative,
+                    })}
+                    disabled={disabled}
+                    onClick={onClick}
+                >
+                    <span
+                      className={classNames(
+                    //  "css_color_contrib_light"
+                      )}
+                    >
+                        <i
+                          className={"fa fa-caret-"+(is_negative?"down":"up")}
+                          style={{fontSize: '1.3em', color: '#afafaf'}}
+                        ></i>
+                        <span
+                          className={classNames(
+                            "css_color_contrib_light"
+                          )}
+                        >
+                            {' '}
+                            { already_voted ? 'un-' : '' }
+                            { is_negative ? 'down' : 'up' }
+                            vote
+                        </span>
+                    </span>
+                </button>
+            );
+
+            function onClick() {
+                that.setState({
+                    saving_vote: is_negative,
+                });
+                resource.votable.upvote.toggle({is_negative})
+                .then(() => {
+                    that.setState({
+                        saving_vote: undefined,
+                    });
+                    rerender.carry_out();
+                })
             }
-        </div>;
+        } 
     },
 }); 
 
@@ -371,30 +213,48 @@ const ResourceDetailsSnippet = React.createClass({
             ];
         })(); 
 
-        const review_section = (() => { 
-            if( resource.taggedreviews.length === 0 ) {
-                return null;
-            }
-            return [
-                <h2 key={0} className="css_da">Review</h2>,
-                <TaggedReviewsSnippet key={1} resource={resource} />,
-            ];
-        })(); 
-
         const readme_section = (() => { 
             return [
                 <h2 key={0} className="css_da">Readme</h2>,
                 <div
                   key={1}
                   className="markdown-body"
-                  style={{paddingBottom: 50}}
+                  style={{paddingBottom: 50, paddingLeft: 8, paddingRight: 8}}
                   dangerouslySetInnerHTML={{__html: resource.github_info.readme}}
                 />,
             ];
         })(); 
 
+        const community_section = (() => { 
+            const resource_quote =
+                <code className="css_da css_inline" style={{fontSize: '1em'}}>{resource.npm_package_name}</code>;
+            return [
+            //  <h2 key={'title'} className="css_da">Community</h2>,
+                <VoteSnippet key={'vote'} resource={resource} request_view={this.props.request_view}/>,
+                <br key={'br1'}/>,
+                <CommentListSnippet.component key={'comments'} thing={resource} />,
+                <LoginRequired.component key={'login'} text={'to vote and comment'}/>,
+                <br key={'br2'}/>,
+                <div
+                  key={'vote_note'}
+                  className="css_p css_note"
+                  style={{fontSize: '10px'}}
+                >
+                    { this.props.is_request ?
+                        <div>
+                            After enough upvotes {resource_quote} will be added to the catalog.
+                        </div> :
+                        <div>
+                            If {resource_quote} gets several downvotes then it will be removed from the catalog.
+                        </div>
+                    }
+                </div>,
+                <br key={'br3'}/>,
+            ];
+        })(); 
+
         return <div className="css_resource_details">
-            { review_section }
+            { community_section }
             { github_section }
             { npm_section }
             { readme_section }

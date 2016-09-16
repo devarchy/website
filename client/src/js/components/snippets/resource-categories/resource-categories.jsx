@@ -25,7 +25,7 @@ const ResourceAdder = React.createClass({
         const header =
             <div>
                 <button
-                  className="css_da css_secondary css_color_red"
+                  className="css_da css_secondary_button css_color_red"
                   style={{fontSize: '0.75em'}}
                   onClick={this.toggle}
                 >

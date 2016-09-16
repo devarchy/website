@@ -1,51 +1,74 @@
-button.css_da {
-
-    font-size: 1em;
-    cursor: pointer;
-    color: inherit;
-    font-family: inherit;
-
-    &.css_secondary {
-        &,
-        &:focus,
-        &:hover {
-            background-color: transparent;
-            margin: 0;
-            padding: 0;
-            border: 0;
-            display: inline-block;
-            color: #888;
-            font-size: 0.8em;
-            text-transform: uppercase;
-            user-select: none;
-            outline: 0;
-        }
-
-        & + & {
-            margin-left: 20px;
-        }
-
+:root {
+    --button_common: {
+        font-size: 1em;
+        cursor: pointer;
+        color: inherit;
+        font-family: inherit;
     }
-
-    &.css_primary {
-        padding: 6px 10px;
-        text-transform: uppercase;
-        font-size: .8em;
-        border-radius: 2px;
-        background-clip: padding-box;
-        letter-spacing: 1px;
-
-        border: 1px solid rgba(0,0,0, 0.08);
-        background-color: rgba(0,0,0, 0.02);
-
-        & > i {
-            margin-right: 8px;
-            &.fa-plus {
-                vertical-align: middle;
-                opacity: 0.5;
-                font-size: 1.5em;
-            }
-        }
-    }
-
 }
+
+button.css_secondary_button {
+    @apply --button_common;
+
+    &,
+    &:focus,
+    &:hover {
+        background-color: transparent;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        display: inline-block;
+        color: #888;
+        font-size: 0.8em;
+        text-transform: uppercase;
+        user-select: none;
+        outline: 0;
+    }
+
+    & + & {
+        margin-left: 20px;
+    }
+}
+
+button.css_primary_button {
+    @apply --button_common;
+
+    padding: 6px 10px;
+    text-transform: uppercase;
+    font-size: .8em;
+    border-radius: 2px;
+    background-clip: padding-box;
+    letter-spacing: 1px;
+
+    border: 1px solid rgba(0,0,0, 0.08);
+    &:not(.css_unpressed_button) {
+        &:not(.css_dark_bg) {
+            background-color: rgba(0,0,0, 0.02);
+        }
+        &.css_dark_bg {
+            background-color: rgba(0,0,0, 0.03);
+        }
+    }
+    &.css_unpressed_button {
+        background-color: transparent;
+    }
+
+    & > i {
+        margin-right: 8px;
+        &.fa-plus {
+            vertical-align: middle;
+            opacity: 0.5;
+            font-size: 1.5em;
+        }
+    }
+}
+
+button.css_text_button {
+    @apply --button_common;
+
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+

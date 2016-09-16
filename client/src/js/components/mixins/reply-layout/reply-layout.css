@@ -1,0 +1,20 @@
+.reply-list > .reply-list__body {
+    margin-bottom: 10px;
+
+    padding-left: 22px;
+    position: relative;
+
+    /* line to communicate reply list */
+    &::before {
+        /*
+        content: "";
+        */
+        display: block;
+        border-style: solid;
+        border-width: 0 0 0 3px;
+        height: calc(100% - 4px);
+        position: absolute;
+        bottom: 0;
+        left: 3px;
+    }
+}

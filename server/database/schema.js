@@ -1,11 +1,11 @@
 "use strict";
 const assert = require('assert');
-const Promise = require('bluebird');
+const Promise = require('bluebird'); Promise.longStackTraces();
 const Promise_serial = require('promise-serial');
 const npm_api = require('../util/npm-api');
 const Thing = require('./thingdb');
 const github_api = require('../util/github-api');
-
+const parse_markdown_catalog = require('../util/parse_markdown_catalog');
 
 module.exports = {
     user: { 
@@ -21,7 +21,7 @@ module.exports = {
             validation: {
                 type: Object,
             },
-            value: thing_self => {
+            value: thing_self => { 
                 // *** Note on user id VS username ***
                 // - official way to retrieve user info; https://api.github.com/users/:username
                 // - undocumented working endpoint; https://api.github.com/user/:id
@@ -70,6 +70,82 @@ module.exports = {
                     }
                     throw err;
                 });
+            }, 
+            required: true,
+        },
+    }, 
+    user_private_data: { 
+        _options: {
+            is_private: true,
+        },
+        referred_user: {
+            validation: {
+                type: 'Thing.user',
+            },
+            required: true,
+            immutable: true,
+            is_unique: true,
+            cascade_save: true,
+        },
+        email: {
+            validation: {
+                type: String,
+                test: val => val===null || val.includes('@') && !/\s/.test(val) && val.length>2,
+            },
+            value: thing_self => { 
+
+                const auth_token = thing_self.auth_token.token;
+                assert(auth_token);
+
+                return (
+                    github_api.user.get_emails({
+                        auth_token,
+                        max_delay: Thing.http_max_delay,
+                    })
+                )
+                .then(emails => {
+                    if( emails === null ) {
+                        return null;
+                    }
+                    assert((emails||0).constructor===Array);
+                    assert(emails.every(email =>
+                        (email.email||'').includes('@') &&
+                        [true, false].includes(email.verified) &&
+                        [true, false].includes(email.primary)
+                    ));
+
+                    if( emails.length === 0 ) {
+                        return null;
+                    }
+                    emails = emails.sort((e1, e2) => {
+                        if( e1.verified !== e2.verified ) {
+                            if( e1.verified ) {
+                                return -1;
+                            } else {
+                                return 1;
+                            }
+                        }
+
+                        if( e1.primary !== e2.primary ) {
+                            if( e1.primary ) {
+                                return -1;
+                            } else {
+                                return 1;
+                            }
+                        }
+
+                        return 0;
+                    });
+                    const email = emails[0].email;
+                    assert((email||'').length>2);
+                    return email;
+                })
+            }, 
+        },
+        auth_token: {
+            validation: {
+                type: Object,
+                test: val => ['github'].includes(val.provider) && (val.token||'').length>5,
             },
             required: true,
         },
@@ -249,6 +325,9 @@ module.exports = {
                 const preview = {
                     tags: [],
                     tagreqs: [],
+                    number_of_comments: 0,
+                    number_of_upvotes: 0,
+                    number_of_downvotes: 0,
                 };
 
                 return (
@@ -259,42 +338,80 @@ module.exports = {
                     .forEach(referrer => {
                         add_tag(referrer, referrers);
                         add_tagrequests(referrer, referrers);
+                        add_numbers(referrer);
+                        add_taggeredreview_numbers(referrer);
                     });
                 })
                 .then(() => preview);
 
                 assert(false);
 
-                function add_tag(referrer, referrers) {
-                    if( referrer.type !== 'tag' ) {
+                function add_tag(tag, referrers) { 
+                    if( tag.type !== 'tag' ) {
                         return;
                     }
-                    const tag = referrer;
                     const corresponding_tagged_found =
-                        referrers.some( tagged =>
-                            tagged.type === 'tagged' &&
-                            tagged.referred_resource === thing_self.id &&
-                            tagged.referred_tag === tag.id );
+                        referrers.some( t =>
+                            t.type === 'tagged' &&
+                            t.referred_resource === thing_self.id &&
+                            t.referred_tag === tag.id );
                     assert(corresponding_tagged_found);
                     assert(tag.name);
                     preview.tags.push(tag.name);
-                }
+                } 
 
-                function add_tagrequests(referrer) {
-                    if( referrer.type !== 'tagged' ) {
+                function add_tagrequests(tagged, referrers) { 
+                    if( tagged.type !== 'tagged' ) {
                         return;
                     }
-                    const tagged = referrer;
+                    const tag = referrers.find(t => t.id === tagged.referred_tag);
+                    assert(tag);
+                    assert(tag.type==='tag');
+                    assert(tag.name);
+
                     if( ! tagged.tagrequest ) {
                         return;
                     }
                     assert(tagged.tagrequest.constructor === String && tagged.tagrequest.length > 0);
-                    preview.tagreqs.push(tagged.tagrequest);
-                }
+                    preview.tagreqs.push({
+                        tagname: tag.name,
+                        category: tagged.tagrequest,
+                    });
+                } 
+
+                function add_numbers(referrer) { 
+                    if( referrer.type === 'comment' ) {
+                        preview.number_of_comments++;
+                    }
+                    if( referrer.type === 'genericvote' && referrer.referred_thing === thing_self.id ) {
+                        if( referrer.is_negative ) {
+                            preview.number_of_downvotes++;
+                        } else {
+                            preview.number_of_upvotes++;
+                        }
+                    }
+                } 
+
+                function add_taggeredreview_numbers(referrer) { 
+                    if( referrer.type === 'taggedreview' ) {
+                        if( referrer.rejection_argument ) {
+                            preview.number_of_downvotes++;
+                        }
+                        else {
+                            preview.number_of_upvotes++;
+                        }
+                    }
+                } 
 
             },
             required: true,
             required_props: ['tags', 'tagreqs', ],
+        }, 
+        stability: { 
+            validation: {
+                test: val => ['production', 'beta', 'experimental', ].includes(val),
+                type: String,
+            },
         }, 
     }, 
     tag: { 
@@ -305,31 +422,22 @@ module.exports = {
                         return null;
                     }
 
-                    assert( thing_self.markdown_list__data );
-                    assert( thing_self.markdown_list__data.resources_all );
+                    assert( thing_self.markdown_list__data.every(c => c.resources.constructor === Array) );
+
+                    const resources_all = thing_self.markdown_list__data.map(c => c.resources).reduce((acc, cur) => acc.concat(cur), []);
+                    assert(resources_all.every(({github_full_name, npm_package_name}) => github_full_name && npm_package_name));
 
                     return () => {
-                        const resources = process_resources_info(thing_self.markdown_list__data.resources_all);
                         return (
-                            save_resources(resources)
+                            save_resources(resources_all)
                         )
                         .then(() =>
-                            check_if_all_resources_are_created(resources)
+                            check_if_all_resources_are_created(resources_all)
                         )
                         .then(() => {});
                     };
 
-                    function process_resources_info(resources) {
-                        return (
-                            resources
-                        )
-                        .map(({github_full_name, npm_package_name}) =>
-                            github_full_name ? ({npm_package_name, github_full_name}) : null
-                        )
-                        .filter(v => !!v);
-                    }
-
-                    function save_resources(resources) {
+                    function save_resources(resources_all) {
                         assert(thing_self.id);
                         return (
                             new Thing({
@@ -341,7 +449,7 @@ module.exports = {
                         )
                         .then(([thing__user]) =>
                             Promise_serial(
-                                resources.map(({github_full_name, npm_package_name}) => () => {
+                                resources_all.map(({github_full_name, npm_package_name}) => () => {
                                     return (
                                         new Thing({
                                             type: 'resource',
@@ -367,7 +475,7 @@ module.exports = {
                         );
                     }
 
-                    function check_if_all_resources_are_created(resources) {
+                    function check_if_all_resources_are_created(resources_all) {
                         return (
                             Thing.database.load.things({
                                 type: 'resource',
@@ -375,7 +483,7 @@ module.exports = {
                             })
                         )
                         .then(things => {
-                            resources.forEach(({github_full_name, npm_package_name}) => {
+                            resources_all.forEach(({github_full_name, npm_package_name}) => {
                                 assert(
                                     things.find(t =>
                                         t.type === 'resource' &&
@@ -435,7 +543,7 @@ module.exports = {
         }, 
         markdown_list__data: { 
             validation: {
-                type: Object,
+                type: Array,
             },
             value: thing_self => {
                 if( ! thing_self.markdown_list__github_full_name ) {
@@ -454,159 +562,22 @@ module.exports = {
                 );
 
                 function parse_markdown(content) { 
-                    // TODO: use https://github.com/chjj/marked
-
                     if( content === null ) {
                         return null;
                     }
 
-                    let ancestor_headers = [{
-                        subheaders: [],
-                        resources: [],
-                        resources_all: [],
-                        header_level: 0,
-                        header_description: null,
-                    }];
-
-                    content
-                    .split('\n')
-                    .forEach(line => {
-                        const header = (() => { 
-                            const re = /^\s*#+\s*(?=[^#\s])/;
-                            if( ! re.test(line) ) {
-                                return null;
-                            }
-                            return {
-                                text: clean_text(line.replace(re, '')),
-                                header_level: (() => {
-                                    const match = (line.match(re)||[])[0];
-                                    assert(match);
-                                    assert(match.includes('#'));
-                                    return match.length - match.replace(/#/g, '').length;
-                                })(),
-                                resources: [],
-                                resources_all: [],
-                                subheaders: [],
-                                header_description: null
-                            };
-
-                            function clean_text(str) {
-                                return str.replace(/\s*\[.*/,'');
-                            }
-                        })(); 
-
-                        const resource = (() => { 
-                            if( header !== null ) {
-                                return null;
-                            }
-                            const re_link = /^\s*-\s*\[([^\]]+)\]\((http[^\)]+)\)/;
-
-                            if( ! re_link.test(line) ) {
-                                return null;
-                            }
-
-                            const match = line.match(re_link);
-                            assert(match && match.length >= 3);
-                            if( match.length > 3 ) {
-                                return null;
-                            }
-
-                            const text = match[1];
-                            const link = match[2];
-
-                            let github_full_name = null;
-                            {
-                                const github_url_start = 'https://github.com/';
-                                if( link.startsWith(github_url_start) ) {
-                                    github_full_name = link.slice(github_url_start.length);
-                                    assert(github_full_name.split('/').length === 2);
+                    return parse_markdown_catalog(
+                        content,
+                        {
+                            style: 'npm_catalog',
+                            processor: (type, data) => {
+                                if( type === 'header' && data.text.toLowerCase().includes('learning material') ) {
+                                    return null;
                                 }
-                            }
-
-                            let npm_package_name = null;
-                            if( github_full_name && npm_api.is_npm_package_name_valid(text) ) {
-                                 npm_package_name = text;
-                            }
-
-                            assert( (github_full_name===null) === (npm_package_name===null), "`text==='"+text+"' && link==='"+link+"'`" );
-
-                            return {
-                                raw: {
-                                    text,
-                                    link,
-                                },
-                                github_full_name,
-                                npm_package_name,
-                            };
-                        })(); 
-
-                        const header_description = (() => { 
-                            if( header !== null || resource !== null ) {
-                                return null;
-                            }
-
-                            const parent_header = ancestor_headers.slice(-1)[0];
-                            if( parent_header.resources.length > 0 ) {
-                                return null;
-                            }
-
-                            const re_desc = /^[\s]*\*[^\*]+\*[\s]*$/;
-                            if( ! re_desc.test(line) ) {
-                                return null;
-                            }
-
-                            const header_description = line.trim().replace(/\*/g, '');
-                            return {text:header_description};
-                        })(); 
-
-                        if( resource ) {
-                            ancestor_headers.forEach((h, i) => {
-                                h.resources_all.push(resource);
-                            });
-                            const parent_header = ancestor_headers.slice(-1)[0];
-                            parent_header.resources.push(resource);
+                                return data;
+                            },
                         }
-
-                        if( header_description ) {
-                            const parent_header = ancestor_headers.slice(-1)[0];
-                            parent_header.header_description = header_description;
-                        }
-
-                        if( header ) {
-                            ancestor_headers = ancestor_headers.filter(h => h.header_level < header.header_level);
-                            assert(ancestor_headers.length >= 1 && ancestor_headers[0].header_level===0, 'ancestor_headers should always contain root header');
-                            ancestor_headers.push(header);
-                            assert(ancestor_headers.every((h, i) => i===0 || h.header_level > ancestor_headers[i-1].header_level));
-                            const parent_header = ancestor_headers.slice(-2,-1)[0];
-                            assert(parent_header);
-                            assert(parent_header.subheaders, JSON.stringify(parent_header, null, 2));
-                            parent_header.subheaders.push(header);
-                        }
-                    });
-
-                    let root_header = ancestor_headers[0];
-
-                    prune_empty_headers(root_header);
-                    function prune_empty_headers(h) {
-                        h.subheaders = h.subheaders.filter(h => h.resources_all.length !== 0);
-                        h.subheaders.forEach(h => prune_empty_headers(h));
-                    }
-
-                    if( root_header.subheaders.length === 1 ) {
-                        root_header = root_header.subheaders[0];
-                    }
-
-                    if( ! root_header.text ) {
-                        root_header.text =
-                            markdown_list__github_full_name
-                            .split('/')[1]
-                            .split('-')
-                            .filter(str => str.length > 0)
-                            .map(str => str.length < 4 ? str : str.slice(0,1).toUpperCase()+str.slice(1))
-                            .join(' ');
-                    }
-
-                    return root_header;
+                    );
                 } 
             },
         }, 
@@ -677,6 +648,70 @@ module.exports = {
                 test: val => val === null || (val||0).constructor===String && val.length>0,
             },
             required: false, // `false` because the absence of `rejection_argument` means "approved"
+        },
+    }, 
+    comment: { 
+        text: {
+            validation: {
+                type: String,
+            },
+        },
+        referred_thing: {
+            validation: {
+                type: ['Thing.comment', 'Thing.resource', ],
+            },
+            required: true,
+        },
+        referred_resource: {
+            validation: {
+                type: 'Thing.resource',
+            },
+            required: true,
+            cascade_save: true,
+            add_to_view: true,
+        },
+    }, 
+    genericvote: { 
+        _options: {
+            is_unique: ['author', 'referred_thing', 'vote_type', ],
+            // add resource
+            additional_views: [ 
+                (thing_self, transaction) =>
+                    Thing.database.load.things({id: thing_self.referred_thing}, {transaction})
+                    .then(things => {
+                        assert( things.length === 1);
+                        return things
+                        .map(thing => {
+                            assert( ['comment', 'resource' ].includes(thing.type) );
+                            if( thing.type === 'resource' ) {
+                                return thing.id;
+                            }
+                            assert(thing.type==='comment');
+                            assert(thing.referred_resource);
+                            return thing.referred_resource;
+                        })
+                        .filter(thing => thing!==null);
+                    })
+            ], 
+        },
+        vote_type: {
+            validation: {
+                test: val => ['upvote', ].includes(val),
+                type: String,
+            },
+            required: true,
+        },
+        is_negative: {
+            validation: {
+                type: Boolean,
+            },
+        },
+        referred_thing: {
+            validation: {
+                type: ['Thing.comment', 'Thing.resource', ],
+            },
+            cascade_save: true,
+            required: true,
         },
     }, 
 };

@@ -1,9 +1,9 @@
 html.css_da {
     color: #333;
-    font-size: 0.9em;
+    font-size: 0.82em;
 }
 html.css_da > body {
-    font-family: 'Roboto', sans-serif;
+    font-family: Verdana, Geneva, sans-serif;
 }
 
 h1, h2, h3, h4, h5 {
@@ -15,7 +15,6 @@ h1, h2, h3, h4, h5 {
 h1, h2 {
     &.css_da {
         font-weight: 300;
-        display: inline-block;
         vertical-align: middle;
     }
 }
@@ -36,6 +35,7 @@ h6.css_da {
 html a.css_da {
     &, &:hover, &:focus {
         color: #aaa;
+        cursor: pointer;
     }
 }
 
@@ -61,4 +61,23 @@ code.css_da {
 .css_note {
     font-size: 0.9em;
     color: #575757;
+}
+
+.css_action_text {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.css_light_paragraph {
+    margin: 0;
+    padding: 3px 0;
+    font-size: 1.1em;
+}
+
+.css_description_line {
+    display: block;
+    position: relative;
+    top: -1px;
+    color: #999;
+    font-size: 10.6667px;
 }

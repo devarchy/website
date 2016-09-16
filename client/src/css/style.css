@@ -1,3 +1,10 @@
 html.css_da {
     background-color: #fdfdfd;
 }
+
+.css_info_box {
+    background-color: rgba(0,0,0,0.05);
+    padding: 10px 20px;
+    border-radius: 4px;
+    margin: 20px 0;
+}

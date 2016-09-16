@@ -43,7 +43,7 @@ function save_event(thing_id, thing_type, draft, schema, transaction) {
     assert(thing_event_row.id_row);
     assert(thing_event_row.id_thing);
     assert(thing_event_row.type);
-    assert(/^[a-zA-Z]+$/.test(thing_event_row.type));
+    assert(/^[a-z][a-z_]*[a-z]$/.test(thing_event_row.type));
     assert(thing_event_row.author);
     assert(thing_event_row.json_data);
     assert( Object.keys(thing_event_row).every(prop => table_columns.thing_event.includes(prop)) );
@@ -81,7 +81,7 @@ function save_event(thing_id, thing_type, draft, schema, transaction) {
 
         assert(row);
         assert(row.type);
-        assert(/^[a-zA-Z]+$/.test(row.type));
+        assert(/^[a-z][a-z_]*[a-z]$/.test(row.type));
         assert(row.author);
         assert(validator.isUUID(row.author));
         assert(row.json_data);

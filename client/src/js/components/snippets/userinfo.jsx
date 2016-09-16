@@ -1,30 +1,32 @@
 import React from 'react';
 import assert from 'assert';
 import Thing from '../../thing';
-import UserSnippet from './user';
+
+import AuthPage from '../pages/auth';
+import UserSnippet from '../snippets/user';
+import LinkMixin from '../mixins/link';
+
 
 const LoginButton = () =>
-    <a href="/auth/github" className="css_da">
-        <button className="css_da css_primary css_login_button">
+    <LinkMixin.component
+      to={AuthPage.route.interpolate()}
+      className="css_da"
+    >
+        <button className="css_da css_primary_button css_login_button">
             <span
               style={{fontSize: '0.95rem', wordSpacing: '1px'}}
-              className="css_color_contrib"
+              className="css_color_contrib_dark"
             >
-                Log in with
-                GitHub
-                {' '}
                 <i
                 className="fa fa-github"
-                style={{color: '#6d6d6d', fontSize: '1.3em', verticalAlign: 'middle', position: 'relative', top: -1, left: -2}}
+                style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -1, paddingRight: 3}}
                 />
+                {' '}
+                Login with
+                GitHub
             </span>
-            <div
-              style={{fontSize: '0.78rem', textTransform: 'none', letterSpacing: 'normal', color: '#656565'}}
-            >
-                no permissions asked
-            </div>
         </button>
-    </a>;
+    </LinkMixin.component>;
 
 const UserinfoSnippet = React.createClass({
     render: function(){

@@ -134,6 +134,13 @@ const RootTagList = React.createClass({
 
         function LinkHeader(props) {
             assert(props.tag);
+            const img_url = (n =>
+                n.includes('redux')
+                    && "https://cdn.rawgit.com/brillout/awesome-redux/master/redux-logo.svg" ||
+                n.includes('react')
+                    && "https://cdn.rawgit.com/brillout/awesome-react-components/master/react-logo.svg" ||
+                null
+            )(props.tag.name.toLowerCase());
             return (
                 <LinkMixin.component
                   className={'css_tag'}
@@ -145,13 +152,13 @@ const RootTagList = React.createClass({
                   }}}
                   style={{width: '100%', marginTop: 0}}
                 >
-                    <div className='css_tag_icon'>
-                        <svg width="20" height="20" viewBox="6 -2 23 19">
-                            <title>Awesome list logo created by Sindre Sorhus</title>
-                            <path fill="currentColor" d="M26.57 9.34l-4.91-4.5-.69.75 4.09 3.75H8.94l4.09-3.75-.69-.75-4.91 4.5v2.97c0 1.34 1.29 2.43 2.88 2.43h3.03c1.59 0 2.88-1.09 2.88-2.43v-1.95h1.57v1.95c0 1.34 1.29 2.43 2.88 2.43h3.03c1.59 0 2.88-1.09 2.88-2.43l-.01-2.97z"/>
-                        </svg>
-                    </div>
-                    {props.tag.display_title__strip_awesome}
+                    { img_url !== null &&
+                        <img
+                          className='css_tag_icon'
+                          src={img_url}
+                        />
+                    }
+                    {props.tag.display_title__maniuplated}
                 </LinkMixin.component>
             );
         }
@@ -207,12 +214,17 @@ let taglist_is_fetching = false;
 
 export default {
     component: TagListSnippet,
-    fetch: () => {
-        taglist_is_fetching = true;
-        return (
-            Tag.retrieve_things()
-        ).then(() => {
-            taglist_is_fetching = false;
-        });
-    },
+    fetch: (() => {
+        let fetch_promise;
+        return () => {
+            if( ! fetch_promise ) {
+                fetch_promise =
+                    Tag.retrieve_things()
+                    .then(() => {
+                        taglist_is_fetching = false;
+                    });
+            }
+            return fetch_promise;
+        }
+    })(),
 };

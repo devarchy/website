@@ -1,6 +1,7 @@
 "use strict";
 const connection = require('../connection');
 const assert = require('better-assert');
+const node_assert = require('assert');
 const table_columns = require('../table').columns;
 const timerlog = require('timerlog');
 
@@ -13,10 +14,10 @@ const util = module.exports = {
 };
 
 function retrieve_by_filter(table_name, thing_props, {result_fields, transaction, orderBy, return_raw_request}={}) {
-    assert( 2 <= arguments.length && arguments.length<= 3 );
+    node_assert( 2 <= arguments.length && arguments.length<= 3, arguments );
     assert( arguments[2] === undefined || arguments[2].constructor===Object );
     assert( table_name );
-    assert( thing_props && Object.keys(thing_props).length>=0 && thing_props.length===undefined );
+    assert( thing_props && Object.keys(thing_props).length>=0 && thing_props.constructor===Object );
     assert( transaction === undefined || transaction.rid );
     assert( [undefined, null].includes(result_fields) || result_fields.constructor===Array && (result_fields.includes('id') || result_fields.includes('type')) );
     assert( orderBy===undefined || orderBy.constructor === String );
@@ -62,11 +63,13 @@ function retrieve_by_filter(table_name, thing_props, {result_fields, transaction
             const property = path.slice(-1)[0];
             const object_path = ['json_data'].concat(path.slice(0,-1));
             const json_path__base = object_path.join('->');
-            if( val===null || val.constructor===Array ) {
+            if( val===null || val.constructor===Array || val === '_NOT_NULL' ) {
                 const json_path = json_path__base + '->' + property;
                 if( val===null ) {
                     request = request.whereRaw(json_path+' IS NULL');
                  // request = request.whereNull(json_path); // throws `column "json_data->'npm_info'" does not exist`
+                } else if( val === '_NOT_NULL' ) {
+                    request = request.whereRaw(json_path+' IS NOT NULL');
                 } else if( val.constructor===Array ) {
                     request = request.whereRaw(json_path+' \\?| ?', [val]);
                 }

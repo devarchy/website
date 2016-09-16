@@ -13,7 +13,7 @@ describe("Devarchy's Schema", () => {
     promise.it("supports adding and parsing a markdown_list", () => {
 
         let http_max_delay__org = Thing.http_max_delay;
-        Thing.http_max_delay = 10*1000;
+        Thing.http_max_delay = 60*1000;
 
         return (
             new Thing({
@@ -28,14 +28,15 @@ describe("Devarchy's Schema", () => {
         .then(([tag]) => {
             assert(tag);
             assert(tag.markdown_list__data);
-            assert(tag.markdown_list__data.subheaders.length > 3);
-            assert(tag.markdown_list__data.resources_all.length > 50);
-            assert(tag.markdown_list__data.text === 'Awesome Redux', '`'+tag.markdown_list__data.text+'`');
+            assert(tag.markdown_list__data.constructor === Array);
+            assert(tag.markdown_list__data.length > 5);
+            assert(tag.markdown_list__data.every(c => c.number_of_all_resources > 0));
+            assert(tag.markdown_list__data.map(c => c.number_of_all_resources).reduce((prev, curr) => prev+curr) > 50);
             Thing.http_max_delay = http_max_delay__org;
             return [tag];
         })
 
-    }, { timeout: 10*60*1000 });
+    }, { timeout: 30*60*1000 });
 
 });
 

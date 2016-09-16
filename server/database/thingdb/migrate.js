@@ -9,7 +9,7 @@ module.exports = {
 };
 
 
-function recompute_things({filter_properties, filter_fct, dont_cascade_saving, close_connections_when_done}={}) {
+function recompute_things({filter_properties, filter_fct, dont_cascade_saving, close_connections_when_done, dont_apply_side_effects}={}) {
     const Thing = require('./');
 
     return (
@@ -25,7 +25,7 @@ function recompute_things({filter_properties, filter_fct, dont_cascade_saving, c
     })
     .then(things_to_fix => {
         console.log('recomputing '+things_to_fix.length+' things');
-        return Promise_serial(things_to_fix.map(thing => () => thing.recompute({dont_cascade_saving})), {log_progress: true});
+        return Promise_serial(things_to_fix.map(thing => () => thing.recompute({dont_cascade_saving, dont_apply_side_effects})), {log_progress: true});
     })
     .then(() => {
         if( close_connections_when_done ) {

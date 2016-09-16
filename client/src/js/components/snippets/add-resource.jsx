@@ -12,6 +12,8 @@ import Tag from '../../thing/tag';
 
 import FaCheck from 'react-icons/lib/fa/check';
 
+import LoginRequired from '../snippets/login-required';
+
 
 const AddResourceSnippet = React.createClass({ 
     propTypes: {
@@ -39,6 +41,7 @@ const AddResourceSnippet = React.createClass({
                 inputval__github_full_name: '',
                 inputval__npm_package_name: '',
             });
+            this.focus_github_input();
         })
         .catch(err => {
             if( err.validation_errors ) {
@@ -89,11 +92,6 @@ const AddResourceSnippet = React.createClass({
     componentDidMount: function() {
         this.focus_github_input();
     },
-    componentDidUpdate: function() {
-        if( !this.state.added && !this.state.loading && !this.state.inputval__github_full_name && !this.state.inputval__npm_package_name ) {
-            this.focus_github_input();
-        }
-    },
     render: function() {
 
         this.tag__markdown_list = Tag.get_by_name(this.props.tag__markdown_list__name);
@@ -104,9 +102,11 @@ const AddResourceSnippet = React.createClass({
         assert(this.tag__category);
         assert(this.tag__category.is_markdown_category);
 
+        const disabled = this.state.loading || !Thing.things.logged_user;
+
         return <div>
             <form className={classNames({css_saving: this.state.loading})} onSubmit={this.add_resource}>
-                <fieldset className="css_da" disabled={this.state.loading || !Thing.things.logged_user}>
+                <fieldset className="css_da" disabled={disabled}>
                     <div>
                         <label>
                             <div className="css_description_label">
@@ -126,7 +126,7 @@ const AddResourceSnippet = React.createClass({
                             </div>
                             <div
                               className="css_input_wrapper"
-                              style={{width: 400}}
+                              style={{width: 420}}
                             >
                                 <span className="css_input_wrapper__prefix">
                                     https://github.com/
@@ -160,7 +160,7 @@ const AddResourceSnippet = React.createClass({
                             </div>
                             <div
                               className="css_input_wrapper"
-                              style={{width: 400}}
+                              style={{width: 420}}
                             >
                                 <span className="css_input_wrapper__prefix">
                                     https://www.npmjs.com/package/
@@ -176,28 +176,25 @@ const AddResourceSnippet = React.createClass({
                         </label>
                     </div>
                     <br/>
-                    <button className="css_da css_primary">
-                        <span className="css_color_contrib css_da">Add Entry</span>
+                    <button
+                      className="css_primary_button css_da css_async_action_button"
+                      disabled={disabled}
+                    >
+                        <span className="css_color_contrib">Add Entry</span>
                     </button>
+                    {/*
+                    <span className="css_note">
+                        <span style={{padding: '0 4px'}}>
+                            {' to '}
+                        </span>
+                        <code className="css_da css_inline" style={{fontSize: '1.1em'}}>
+                            {this.tag__category.display_category({without_root: true})}
+                        </code>
+                    </span>
+                    */}
                 </fieldset>
             </form>
-            {
-                ! Thing.things.logged_user &&
-                    <div className="css_p css_color_red" style={{paddingTop: 10}}>
-                        Log in required to add an entry
-                        <br/>
-                        <a
-                          href="/auth/github"
-                        >
-                            <span
-                              className="css_color_contrib"
-                              style={{textDecoration: 'underline'}}
-                            >
-                                Log in with GitHub
-                            </span>
-                        </a>
-                    </div>
-            }
+            <LoginRequired.component text={'to add an entry'}/>
             { this.state.error_message && <div className="css_p css_color_red" style={{whiteSpace: 'pre'}}>{this.state.error_message}</div> }
             { this.state.added &&
                 <div className="css_p css_color_green">

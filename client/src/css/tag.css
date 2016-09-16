@@ -18,5 +18,8 @@
         height: 100%;
         display: block;
         text-align: center;
+        /* don't know why autoprefixer doesn't add -wekit- prefix */
+        -webkit-filter: grayscale(100%);
+        filter: grayscale(100%);
     }
 }

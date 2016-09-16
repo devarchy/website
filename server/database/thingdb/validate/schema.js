@@ -48,8 +48,8 @@ function validate_thing(type, spec) {
     if( type.startsWith('_') && type!=='_options' ) {
         throw new Thing.SchemaError('found type `'+type+'` but only `_options` is allowed to start with `_`');
     }
-    if( ! /^[a-z]+$/.test(type) ) {
-        throw new Thing.SchemaError('found type `'+type+'` but type name should be composed of lowercase letters');
+    if( ! /^[a-z][a-z_]*[a-z]$/.test(type) ) {
+        throw new Thing.SchemaError('found type `'+type+'` but type name should be composed of lowercase letters and _');
     }
 }
 
@@ -92,9 +92,6 @@ function validate_prop(name, spec) {
         if( types.some(type => ! type.startsWith('Thing.')) ) {
             throw new Thing.SchemaError('`cascade_save` only make sense for referred things');
         }
-        if( ! spec.add_to_view ) {
-            throw new Thing.SchemaError('does `cascade_save` make sense without `add_to_view`?');
-        }
     }
 }
 
@@ -103,7 +100,7 @@ function validate_options(spec) {
 
     if( keys.length === 0 ) throw new Thing.SchemaError('empty options found');
 
-    is_subset(keys, [ 'additional_views', 'is_unique', 'side_effects', ])
+    is_subset(keys, [ 'additional_views', 'is_unique', 'side_effects', 'is_private', ])
 }
 
 function is_subset(arr_subset, arr) {

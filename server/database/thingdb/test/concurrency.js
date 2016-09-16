@@ -2,6 +2,7 @@
 require('./setup');
 require('mocha');
 const assert = require('better-assert');
+const node_assert = require('assert');
 const chai_assert = require('chai').assert;
 const promise = require('./test-promise')();
 const Thing = require('../index.js');
@@ -41,6 +42,10 @@ describe('ThingDB Concurrent Safety', () => {
                         author: population.user.id,
                     },
                 }).draft.save()
+                .then(things => {
+                    // make sure that retries return correctly
+                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                })
             )
         )
         .then(() => {
@@ -84,7 +89,11 @@ describe('ThingDB Concurrent Safety', () => {
                         removed: Math.random()<0.5,
                         author: population.user.id,
                     },
-                }).draft.save(),
+                }).draft.save()
+                .then(things => {
+                    // make sure that retries return correctly
+                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                }),
                 new Thing({
                     type: 'tagged',
                     referred_resource: p.id,
@@ -93,7 +102,11 @@ describe('ThingDB Concurrent Safety', () => {
                         removed: Math.random()<0.5,
                         author: population.user.id,
                     },
-                }).draft.save(),
+                }).draft.save()
+                .then(things => {
+                    // make sure that retries return correctly
+                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                }),
             ])
             .reduce((prev, curr) => prev.concat(curr), [])
         ),

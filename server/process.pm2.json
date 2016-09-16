@@ -6,12 +6,14 @@
   "env": {
     "NODE_ENV": "development",
     "SERVER_DOWN": "",
+    "TIMERLOG": "0",
     "watch": true
   },
   "env_production" : {
-     "NODE_ENV": "production",
-     "SERVER_DOWN": "",
-     "watch": false
+    "NODE_ENV": "production",
+    "SERVER_DOWN": "",
+    "TIMERLOG": "1",
+    "watch": false
   },
   "env_maintenance" : {
      "SERVER_DOWN": "Devarchy is offline for an update. It will be back online in couple of minutes."

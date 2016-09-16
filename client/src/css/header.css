@@ -42,7 +42,7 @@
         justify-content: center;
         bottom: 0;
         height: var(--footer_height);
-        padding-bottom: 20px;
+        padding-bottom: 14px;
         box-sizing: border-box;
         width: 100%;
     }

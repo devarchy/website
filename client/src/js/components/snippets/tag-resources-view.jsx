@@ -35,7 +35,7 @@ export default {
                 }).resource_list,
             resource_list__new:
                 ResourceListSnippet.get_props({
-                    resource_list: Resource.list_things({tags: [tag], newest: true}).slice(0, 500),
+                    resource_list: Resource.list_things({tags: [tag], order: {newest: true}}).slice(0, 500),
                 }).resource_list,
         }
     },

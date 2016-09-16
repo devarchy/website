@@ -21,6 +21,7 @@
     "promise-serial": "*",
     "react": "^15.3.0",
     "react-dom": "^15.3.0",
+    "remark": "^6.0.0",
     "request-promise": "^4.1.1",
     "timerlog": "*",
     "validator": "^5.5.0",

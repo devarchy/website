@@ -3,19 +3,9 @@ import timerlog from 'timerlog';
 import http from '../util/http';
 import {is_npm_package_name_valid} from '../util/npm';
 import Promise from 'bluebird';
+import {SERVER_URI} from '../util/server_uri';
 Promise.longStackTraces();
 
-
-const SERVER_URI = (() => {
-    if( typeof window === 'undefined' ) {
-        return 'http://localhost:8081';
-        // assert( typeof global !== 'undefined' && global.server_uri);
-        // return global.server_uri;
-    }
-    if( window.location.hostname !== 'localhost' )
-        return window.location.origin;
-    return window.location.protocol + '//' + window.location.hostname + ':8081';
-})();
 
 export default {
     retrieve_things,
@@ -27,6 +17,7 @@ export default {
 function retrieve_things({properties_filter, result_fields}){ 
     assert(properties_filter && properties_filter.constructor === Object && Object.keys(properties_filter).length>0);
 
+    assert(['id', 'type', 'updated_at'].every(field => result_fields.includes(field)));
     return request({
         method: 'GET',
         endpoint: 'things',
@@ -140,10 +131,18 @@ function request({method, endpoint, params, body, thing_key}) {
             }
             let thing_old = Thing.things.id_map[key];
             let thing_new = new Thing(thing_info, key);
-            if( thing_old ) {
-                Object.assign(thing_new.query_matches, thing_old.query_matches);
+            if( ! thing_old ) {
+                return thing_new;
             }
-            return thing_new;
+            const old_updated_at = new Date(thing_old.updated_at);
+            const new_updated_at = new Date(thing_new.updated_at);
+            assert(old_updated_at.getTime()>0);
+            assert(new_updated_at.getTime()>0);
+            if( old_updated_at > new_updated_at ) {
+                return thing_old;
+            } else {
+                return thing_new;
+            }
         })
     )
     .then(things => {
@@ -186,50 +185,57 @@ function request({method, endpoint, params, body, thing_key}) {
 
     assert(false);
 
-    function get_markdown_tags(things) {
-        const markdown_tags = [];
-        const global_ids = {};
-        things.forEach(thing => {
-            if( thing.markdown_list__data ) {
-                assert(thing.type==='tag');
-                add_markown_tags(thing.markdown_list__data.subheaders, thing);
-            }
-        });
+} 
 
-        return markdown_tags;
+function get_markdown_tags(things) { 
+    // babel can't handle this dependency on top of this file (webpack can)
+    const Thing = require('./index.js').default;
+    const Tag = require('./tag').default;
 
-        function add_markown_tags(headers, parent_tag) {
-            const local_ids = {};
-            headers.forEach(({text, subheaders, resources, resources_all, header_description}) => {
-                const id_local = text.toLowerCase().replace(/\s/g,'-').replace(/[^a-z0-9\-]/g,'');
-                assert(!local_ids[id_local]);
-                local_ids[id_local] = true;
+    const markdown_tags = [];
 
-                const id_global = parent_tag.id+'_'+id_local;
-                assert(!global_ids[id_global]);
-                global_ids[id_global] = true;
-
-                const tagged_resources = resources
-                    // TODO - figure out what went wron with these two npm packages
-                    .filter(({npm_package_name}) => !['redux-remote-monitor', 'relay-nested-routes'].includes(npm_package_name))
-                    .filter(({github_full_name}) => !!github_full_name);
-
-                if( resources_all.filter(({github_full_name}) => !!github_full_name).length === 0 ) {
-                    return;
-                }
-
-                const markdown_tag = new Thing({
-                    type: 'tag',
-                    id: id_global,
-                    name: id_global,
-                    parent_tag,
-                    tagged_resources,
-                    title: text,
-                    definition: (header_description||{}).text,
-                });
-                markdown_tags.push(markdown_tag);
-                add_markown_tags(subheaders, markdown_tag);
-            });
+    things.forEach(thing => {
+        if( thing.markdown_list__data ) {
+            add_markown_tags(thing);
         }
+    });
+
+    return markdown_tags;
+
+    function add_markown_tags(thing) {
+        const categories = thing.markdown_list__data;
+        assert(categories.constructor === Array);
+        const thing__categories = {};
+        categories.forEach(({id, text, resources, header_description, parent_category_id}) => {
+            const parent_tag =
+                parent_category_id===null ?
+                    thing :
+                    thing__categories[Tag.category__get_global_id(parent_category_id, thing.id)] ;
+            assert(parent_tag, id+' -> '+parent_category_id);
+
+            assert(id);
+            assert(thing.id);
+            const category_id = id;
+            id = Tag.category__get_global_id(id, thing.id);
+            assert(id);
+
+            assert(resources.every(r => r.github_full_name && r.npm_package_name));
+            const tagged_resources = resources
+                // TODO - figure out what went wrong with these two npm packages
+                .filter(({npm_package_name}) => !['redux-remote-monitor', 'relay-nested-routes'].includes(npm_package_name))
+
+            const category_tag = new Thing({
+                type: 'tag',
+                id,
+                name: id,
+                category_id,
+                parent_tag,
+                tagged_resources,
+                title: text,
+                definition: header_description,
+            });
+            thing__categories[category_tag.id] = category_tag;
+            markdown_tags.push(category_tag);
+        });
     }
 } 

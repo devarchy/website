@@ -3,6 +3,8 @@ const Thing = require('../database/thingdb');
 const Boom = require('boom');
 
 
+const PRIVATE_ERROR_MESSAGE = 'trying to access private information';
+
 module.exports = function(server){
     server.route({
         method: 'GET',
@@ -49,7 +51,13 @@ module.exports = function(server){
                 args_parsed.properties_filter,
                 {result_fields: args_parsed.result_fields}
             )
-            .then(things => reply(JSON.stringify(things)));
+            .then(things => {
+                if( things.is_private ) {
+                    reply(JSON.stringify(PRIVATE_ERROR_MESSAGE)).code(401);
+                } else {
+                    reply(JSON.stringify(things));
+                }
+            });
         }, 
     });
 
@@ -78,7 +86,7 @@ module.exports = function(server){
                         error = "Argument is expected to be an array";
                     }
 
-                    console.log('error', value.things, error);
+                    console.error('error', value.things, error);
 
                     next({"message": error});
                 },
@@ -88,7 +96,13 @@ module.exports = function(server){
             assert(request.params.constructor === Array);
 
             Thing.database.load.view(request.params)
-            .then(things => reply(JSON.stringify(things)))
+            .then(things => {
+                if( things.is_private ) {
+                    reply(JSON.stringify(PRIVATE_ERROR_MESSAGE)).code(401);
+                } else {
+                    reply(JSON.stringify(things));
+                }
+            });
         }, 
     });
 
@@ -98,17 +112,19 @@ module.exports = function(server){
         config: { 
             auth: 'session',
             handler: (request, reply) => {
-                const credentials = request.auth.credentials;
+                assert(request.auth.credentials);
 
-                assert(credentials);
+                const user_id =
+                    request.auth.credentials.id || // old cookies
+                    request.auth.credentials.user_id;
 
-                const user_id = credentials.id;
                 assert(user_id);
 
                 Thing.database.load.things({type: 'user', id: user_id})
                 .then(things => {
                     assert(things);
                     assert(things.constructor === Array);
+                    assert(!things.is_private);
                     if(things.length === 0) {
                         reply(JSON.stringify(null)).code(401);
                         return;
@@ -130,12 +146,16 @@ module.exports = function(server){
                     const thing_data = value;
                     const auth = options.context.auth;
 
+                    const user_id =
+                        auth.credentials.id || // old cookies
+                        auth.credentials.user_id;
+
                     const errors = [];
 
                     if( !auth.isAuthenticated ) {
                         errors.push("user is not authenticated");
                     }
-                    else if( !auth.credentials.id ) {
+                    else if( !user_id ) {
                         errors.push("user is authenticated but has no id");
                     }
 
@@ -149,8 +169,8 @@ module.exports = function(server){
                     }
 
                     const author = thing_data.draft.author||thing_data.author;
-                    if( auth.credentials.id !== author ) {
-                        errors.push("(thing_data.draft.author||thing_data.author)===`"+author+"` but authenticated user has id `"+auth.credentials.id+"`");
+                    if( user_id !== author ) {
+                        errors.push("(thing_data.draft.author||thing_data.author)===`"+author+"` but authenticated user has id `"+user_id+"`");
                     }
 
                     if( errors.length > 0 ) {

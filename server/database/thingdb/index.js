@@ -297,6 +297,17 @@ class Thing {
         return specs;
     } 
 
+    get is_private() { 
+        if( !this.type ) {
+            // we need the type to be able to determine whether data is private or not
+            return true;
+        }
+        return (
+            (this.schema._options||{})
+            .is_private
+        );
+    } 
+
     toString() { 
         return JSON.stringify(
             Object.assign({
@@ -305,11 +316,19 @@ class Thing {
         , null, 2);
     } 
 
-    recompute({dont_cascade_saving}={}) { 
+    recompute({dont_cascade_saving, dont_apply_side_effects}={}) { 
         if( Object.keys(this.draft).length !== 0 ) {
             throw new Error('recompute is only allowed with an empty draft');
         }
-        return save_thing_draft(this, {save_on_empty_draft: true, dont_validate_current_saved_things: true, dont_cascade_saving});
+        return save_thing_draft(
+            this,
+            {
+                save_on_empty_draft: true,
+                dont_validate_current_saved_things: true,
+                dont_cascade_saving,
+                dont_apply_side_effects,
+            }
+        );
     } 
 
     static recompute_all(props) { 
@@ -381,23 +400,31 @@ Thing.database = {
         require('./database/connection')().destroy();
         require('../../util/long_term_cache').close_connection();
     },
-    load: {
-        things: function(props) {
+    load: (() => {
+        return {
+            things,
+            all_things,
+            view,
+        };
+
+        function things(props) {
             assert( props && Object.keys(props).length>0 && props.length===undefined );
             assert( props.draft === undefined && props.propertyIsEnumerable('draft') === false );
             return (
                 database.load.things.apply(database.load, arguments)
             )
-            .then(things => things.map(thing => new Thing(thing)));
-        },
-        all_things: function() {
+            .then(process_result)
+        }
+
+        function all_things() {
             assert(arguments.length === 0);
             return (
                 database.load.things({})
             )
-            .then(things => things.map(thing => new Thing(thing)));
-        },
-        view: function(props) {
+            .then(process_result)
+        }
+
+        function view(props) {
             if( !props ) {
                 throw new Error('Thing.database.load.view requires property filter argument');
             }
@@ -407,9 +434,15 @@ Thing.database = {
             return (
                 database.load.view.apply(database.load, arguments)
             )
-            .then(things => things.map(thing => new Thing(thing)));
-        },
-    },
+            .then(process_result)
+        }
+
+        function process_result(things) {
+            things = things.map(thing_info => new Thing(thing_info));
+            things.is_private = things.some(thing => thing.is_private);
+            return things;
+        }
+    })(),
 }; 
 
 Thing.debug = debug;
@@ -443,7 +476,7 @@ const save_thing_draft = (() => {
 
     let sequential_retry_chain = Promise.resolve();
 
-    return (thing, {save_on_empty_draft, transaction, dont_validate_current_saved_things=false, dont_cascade_saving}) => { 
+    return (thing, {save_on_empty_draft, transaction, dont_validate_current_saved_things=false, dont_cascade_saving, dont_apply_side_effects}) => { 
 
         const draft = thing.draft;
 
@@ -532,7 +565,12 @@ const save_thing_draft = (() => {
                     throw err;
                 })
             )
-            .catch(err => {
+            .then(() => {
+                if( !dont_apply_side_effects ) {
+                    return interpolate.apply_side_effects(thing);
+                }
+            })
+            .catch(err => { 
 
                 const COULD_NOT_SERIALIZE = err.code === '40001';
                 const DEAD_LOCK = err.code === '40P01';
@@ -561,11 +599,13 @@ const save_thing_draft = (() => {
                         assert(thing.propertyIsEnumerable(FAILED) === false);
 
                         if( thing[FAILED] !== 1 ) {
-                            return do_retry_with_delay();
+                            return do_retry().then(things_updated_ => {things_updated = things_updated_});
                         }
 
+                        // The purpose of `sequential_retry_chain` is to run retries of several things sequentially.
+                        // In order to avoid concurent saves to clash over and over again.
                         sequential_retry_chain = sequential_retry_chain.then(() => {
-                            return do_retry_with_delay();
+                            return do_retry().then(things_updated_ => {things_updated = things_updated_});
                         });
                         return sequential_retry_chain;
                     }
@@ -573,37 +613,41 @@ const save_thing_draft = (() => {
                     throw err;
                 });
 
-                function do_retry_with_delay() {
-                    return new Promise(resolve => {
-                        setTimeout(
-                            () => {
-                                // onsole.log((DEAD_LOCK&&'[DEAD_LOCK]'||COULD_NOT_SERIALIZE&&'[COULD_NOT_SERIALIZE]'||'[EVENT_CREATED_AT_NOT_UNIQUE]')+' '+thing[FAILED]+'-th retry of thing with type '+thing.type+ ' and draft '+JSON.stringify(source.draft));
-                                resolve(do_retry());
-                            },
-                            // - delay doesn't seem to decrease number of retries
-                            // - which is unexpected and I don't know why
-                            // Math.random()*700
-                            0
-                        );
-                    });
-                    return do_retry();
-                }
-
                 function do_retry() {
-                    // not using constructor `new Thing` because of
-                    // - constructor logic
-                    // - we need to keep same id
 
-                    for(var prop in thing) delete thing[prop];
-                    for(var prop in draft) delete draft[prop];
-                    Object.assign(thing, clone_object(source.thing));
-                    Object.assign(draft, clone_object(source.draft));
-                    thing[SAVE_TYPE] = source.thing_SAVE_TYPE;
-                    return thing.draft.save();
+                    return do_it_with_delay();
+
+                    function do_it_with_delay() {
+                        return new Promise(resolve => {
+                            setTimeout(
+                                () => {
+                                    // onsole.log((DEAD_LOCK&&'[DEAD_LOCK]'||COULD_NOT_SERIALIZE&&'[COULD_NOT_SERIALIZE]'||'[EVENT_CREATED_AT_NOT_UNIQUE]')+' '+thing[FAILED]+'-th retry of thing with type '+thing.type+ ' and draft '+JSON.stringify(source.draft));
+                                    resolve(do_it());
+                                },
+                                // - delay doesn't seem to decrease number of retries
+                                // - which is unexpected and I don't know why
+                                // Math.random()*700
+                                0
+                            );
+                        });
+                    }
+
+                    function do_it() {
+                        // not using constructor `new Thing` because of
+                        // - constructor logic
+                        // - we need to keep same id
+
+                        for(var prop in thing) delete thing[prop];
+                        for(var prop in draft) delete draft[prop];
+                        Object.assign(thing, clone_object(source.thing));
+                        Object.assign(draft, clone_object(source.draft));
+                        thing[SAVE_TYPE] = source.thing_SAVE_TYPE;
+                        return thing.draft.save();
+                    }
                 }
-            });
+
+            }); 
         })
-        .then(() => interpolate.apply_side_effects(thing))
         .then(() => things_updated);
 
         assert(false);

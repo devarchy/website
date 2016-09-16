@@ -2,12 +2,14 @@ import React from 'react';
 import assert from 'assert';
 import crossroads from 'crossroads';
 import Promise from 'bluebird';
+import timerlog from 'timerlog';
 
 import Tag from '../../thing/tag';
 import Resource from '../../thing/resource';
 
 import TagResourcesViewSnippet from '../snippets/tag-resources-view';
 import MarkdownListViewSnippet from '../snippets/markdown-list-view';
+import TagListSnippet from '../snippets/tag-list';
 
 import NotFound404Page from '../pages/not-found-404';
 
@@ -25,14 +27,18 @@ export default {
     fetch_promise: null,
     is_fetching: false,
     fetch: function({route: {params: {tag_name}}}) {
+        // babel can't handle this dependency on top of this file (webpack can)
+        //const TagListSnippet = require('../snippets/tag-list').default;
         assert(tag_name);
         this.is_fetching = true;
+        timerlog({tag:'dataflow', message: 'fetching data for `'+tag_name+'`: START'});
         this.fetch_promise =
             Promise.all([
-                Tag.retrieve_by_name(tag_name),
+                TagListSnippet.fetch(),
                 Resource.retrieve_things__by_tag({tag_name}),
             ])
             .then(() => {
+                timerlog({tag:'dataflow', message: 'fetching data for `'+tag_name+'`: END'});
                 this.is_fetching = false
                 this.fetch_promise = null;
             });
@@ -52,9 +58,7 @@ export default {
         const tag = Tag.get_by_name(tag_name);
         if( ! tag ) {
             const text = <div>
-                The list <code className="css_da css_inline">{tag_name}</code> was not found.
-                <br/>
-                Select another list.
+                Catalog <code className="css_da css_inline">{tag_name}</code> not found.
             </div>;
             return <NotFound404Page.component text={text} />;
         }
@@ -71,7 +75,7 @@ export default {
             };
         }
         return {
-            title: tag.display_title__strip_awesome,
+            title: tag.display_title__maniuplated,
             description: tag.description,
         };
     },

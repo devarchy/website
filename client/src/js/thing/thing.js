@@ -64,13 +64,6 @@ export default class Thing {
             configurable: false,
             writable: false,
         });
-
-        Object.defineProperty(this, 'query_matches', {
-            value: {},
-            enumerable: false,
-            configurable: false,
-            writable: false,
-        });
     } 
 
     get [IS_UPSERT] () { 
@@ -97,14 +90,26 @@ export default class Thing {
         );
     } 
 
-    get_prop_val(prop_path) { 
-        assert(prop_path && prop_path.constructor === String);
+    get_prop_val(key) { 
+        if( key.constructor !== String || !key.includes('.') ) {
+            return this[key];
+        }
         let value = this;
-        prop_path.split('.').forEach(prop => {
-            assert(value, "path of props `"+prop_path+"` has a hole/gap");
+        key.split('.').forEach(prop => {
+            assert(value, "path of props `"+key+"` has a hole/gap");
             value = value[prop];
         });
         return value;
+    } 
+
+    get author_name() { 
+        const author_id = this.author;
+        assert(author_id);
+        const author_thing = Thing.things.id_map[author_id];
+        assert(author_thing);
+        const github_username = author_thing.github_info.login;
+        assert(github_username);
+        return github_username;
     } 
 
     toString() { 
@@ -115,7 +120,7 @@ export default class Thing {
         , null, 2);
     } 
 
-    static list_things ({newest, filter_function, list}={}) { 
+    static list_things ({order, filter_function, list}={}) { 
 
         assert(this.prototype instanceof Thing);
         assert(this !== Thing);
@@ -127,7 +132,7 @@ export default class Thing {
             things = filter_function(things);
         }
 
-        return Thing.sort(things, {newest, type: this.type, });
+        return Thing.sort(things, Object.assign({}, {order: order||{}}, {type: this.type}));
 
     } 
 
@@ -151,10 +156,10 @@ export default class Thing {
         }
 
         if( opts.type ) {
-            opts.ThingType = Thing.typed[opts.type];
+            opts.ThingTyped = Thing.typed[opts.type];
         }
 
-        if( ! opts.ThingType ) {
+        if( ! opts.ThingTyped ) {
             const ThingTyped__candidate = things[0].constructor;
 
             const all_same_thing_typed = things.every(t => t.constructor === ThingTyped__candidate);
@@ -177,7 +182,7 @@ export default class Thing {
 
             assert(opts.ThingTyped === undefined || opts.ThingTyped && (opts.ThingTyped.prototype instanceof Thing || opts.ThingTyped === Thing));
 
-            if( opts.ThingType ) {
+            if( opts.ThingTyped ) {
                 return get_sorter_for_type(opts);
             }
 
@@ -197,19 +202,17 @@ export default class Thing {
                 }
 
                 if( thing1.constructor === thing2.constructor ) {
-                    return get_sorter_for_type(Object.assign(opts, {ThingType: thing1.constructor}))(thing1, thing2);
+                    return get_sorter_for_type(Object.assign(opts, {ThingTyped: thing1.constructor}))(thing1, thing2);
                 }
 
                 assert(false);
+
             }
 
             function get_sorter_for_type(opts) {
 
-                assert(opts.ThingType);
-                const ThingType = opts.ThingType;
-                delete opts.ThingType;
-
-                const order = ThingType.order(opts);
+                assert(opts.ThingTyped);
+                const order = opts.ThingTyped.order(opts.order||{});
 
                 if( order.constructor === Array ) {
                     return orderBy(order);
@@ -234,9 +237,26 @@ export default class Thing {
                 }
 
                 assert(false);
+
             }
 
             function orderBy(props) {
+                assert(props.constructor === Array);
+
+                props = props.map(prop_spec => {
+                    assert([Object, String].includes(prop_spec.constructor));
+                    if( prop_spec.constructor === String ) {
+                        const to_negate = prop_spec.slice(0,1)==='-';
+                        const key = to_negate ? prop_spec.slice(1) : prop_spec;
+                        prop_spec = {
+                            key,
+                            to_negate,
+                        };
+                    }
+                    assert(Object.keys(prop_spec).every(k => ['key', 'to_negate'].includes(k)));
+                    return prop_spec;
+                });
+
                 document_js_comparison();
 
                 const THING1_FIRST = -1;
@@ -244,9 +264,9 @@ export default class Thing {
                 const NO_ORDER = 0;
 
                 return ((thing1, thing2) => {
-                    for(let prop of props) {
-                        const thing1_val = get_val(thing1, prop);
-                        const thing2_val = get_val(thing2, prop);
+                    for(let prop_spec of props) {
+                        const thing1_val = get_val(thing1, prop_spec);
+                        const thing2_val = get_val(thing2, prop_spec);
                         if( thing1_val===null && thing2_val===null ) {
                             continue;
                             assert(false);
@@ -268,19 +288,16 @@ export default class Thing {
                     return NO_ORDER;
                 });
 
-                function get_val(thing, prop) {
+                function get_val(thing, prop_spec) {
                     const NULLY = [null, undefined, NaN, ];
 
-                    const to_negate = prop.slice(0,1)==='-';
-                    if( to_negate ) {
-                        prop = prop.slice(1);
+                    /*
+                    if( prop_spec.constructor === Function ) {
+                        return prop_spec(thing);
                     }
+                    */
 
-                    if( prop.constructor === Function ) {
-                        return prop(thing);
-                    }
-
-                    let val = thing.get_prop_val(prop);
+                    let val = thing.get_prop_val(prop_spec.key);
 
                     if( NULLY.includes(val) ) {
                         return null;
@@ -296,8 +313,8 @@ export default class Thing {
                         val = val ? 1 : 0;
                     }
 
-                    if( to_negate ) {
-                        // assert(val_constructor === Number,val);
+                    if( prop_spec.to_negate ) {
+                        assert(val.constructor === Number, val);
                         val = -val;
                     }
 
@@ -334,7 +351,7 @@ export default class Thing {
      // id can be the id of a category which is not a UUID for now
      // assert(!id || validator.isUUID(id));
         const ret = Thing.things.all.find(thing => thing.id === id);
-        assert(ret);
+        assert(ret, id);
         return ret;
     } 
 
@@ -379,6 +396,7 @@ export default class Thing {
         const CLS_TYPES = [
             'resource',
             'tag',
+            'comment',
         ];
 
         const ret = {};
@@ -389,6 +407,46 @@ export default class Thing {
             ret[type] = cls;
         });
         return ret;
+    } 
+
+    static get_or_create(props) { 
+        assert(props && props.constructor === Object);
+        assert(props.type);
+
+        const draft = Object.assign({}, props);
+        delete draft.is_new;
+        delete draft.type;
+
+        let thing;
+
+        thing =
+            Thing.things.all
+            .find(thing => {
+                for(let i in props) if( thing[i] !== props[i] && thing.draft[i] !== props[i] ) return false;
+                return true;
+            })
+
+        if( thing ) {
+            return thing;
+        }
+
+        thing =
+            new Thing({
+                type: props.type,
+                draft,
+            });
+
+        Thing.things.all[Thing.things.all.length] = thing;
+
+        return thing;
+    } 
+
+    static get result_fields() { 
+        return [
+            'id',
+            'type',
+            'updated_at',
+        ];
     } 
 }
 

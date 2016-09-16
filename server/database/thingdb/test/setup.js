@@ -5,7 +5,10 @@ const connection = require('../../connection.js');
 require('../../../../.env');
 require('mocha');
 const promise = require('./test-promise')();
+const timerlog = require('timerlog');
 
+
+timerlog({disable_all: true});
 
 connection.database = 'automated-tests';
 Thing.database.connection = connection;
