@@ -1,7 +1,7 @@
 const assert = require('assert');
-const connection = require('../connection');
 const Promise = require('bluebird');
 Promise.longStackTraces();
+
 
 module.exports = {
     delete_all,
@@ -10,18 +10,18 @@ module.exports = {
     thingdb_schema_unique_constraints: thingdb_schema_unique_constraints(),
 };
 
-function delete_all() { 
-    var knex = connection();
 
+function delete_all({db_handle}) { 
+    assert(db_handle);
     return Promise.all([
-        knex.raw('DROP TABLE IF EXISTS thing_event CASCADE'),
-        knex.raw('DROP TABLE IF EXISTS thing_aggregate CASCADE'),
+        db_handle.raw('DROP TABLE IF EXISTS thing_event CASCADE'),
+        db_handle.raw('DROP TABLE IF EXISTS thing_aggregate CASCADE'),
     ]);
 } 
 
-function create_schema() { 
-    var knex = connection();
-
+function create_schema({Thing, db_handle}) { 
+    assert(db_handle);
+    assert(Thing);
     return Promise.all([
         create_thing_event(),
         create_thing_aggregate(),
@@ -29,13 +29,14 @@ function create_schema() {
 
     function create_thing_event(){
         return (
-            knex.schema
+            db_handle
+            .schema
             .createTable('thing_event', function(table) {
                 table.uuid('id_row').primary();
                 table.uuid('id_thing').notNullable();
                 table.string('type').notNullable();
                 table.string('author').notNullable();
-                table.timestamp('created_at').unique().notNullable().defaultTo(knex.raw('now()'));
+                table.timestamp('created_at').unique().notNullable().defaultTo(db_handle.raw('now()'));
                 table.jsonb('json_data').notNullable();
             })
         );
@@ -43,10 +44,9 @@ function create_schema() {
 
     function create_thing_aggregate(){
 
-        const Thing = require('../../index.js');
-
         const request = (
-            knex.schema
+            db_handle
+            .schema
             .createTable('thing_aggregate', function(table) {
 
                 table.uuid('id_thing').primary();
@@ -68,9 +68,9 @@ function create_schema() {
         return (
             request
         ).then( () =>
-            knex.schema.raw('alter table thing_aggregate add column "views" text[];')
+            db_handle.schema.raw('alter table thing_aggregate add column "views" text[];')
         ).then( () =>
-            knex.schema.table('thing_aggregate', table =>
+            db_handle.schema.table('thing_aggregate', table =>
                 table.index(['views'])
             )
         );
@@ -123,13 +123,12 @@ function thingdb_schema_unique_constraints() {
         apply,
     };
 
-    function apply() {
-        const Thing = require('../../');
-        const knex = connection();
+    function apply({Thing, db_handle}) {
+        assert(db_handle);
+        assert(Thing);
+        assert(Thing.schema && Thing.schema.constructor === Object);
 
         const INDEX_NAME_PREFIX = 'unique__';
-
-        assert(Thing.schema && Thing.schema.constructor === Object);
 
         Object.entries(Thing.schema).forEach(([type, type_schema]) => {
             Object.entries(type_schema).forEach(([prop_name, {is_unique}]) => {
@@ -175,7 +174,7 @@ function thingdb_schema_unique_constraints() {
         });
 
         return (
-            knex.raw("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND indexname ~ '^"+INDEX_NAME_PREFIX+".*';")
+            db_handle.raw("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='public' AND indexname ~ '^"+INDEX_NAME_PREFIX+".*';")
         )
         .then(({rows}) => {
             rows.forEach(({indexdef}) => {
@@ -201,7 +200,7 @@ function thingdb_schema_unique_constraints() {
             return requests_to_run;
         })
         .then(requests_to_run =>
-            Promise.all(requests_to_run.map(request => knex.schema.raw(request)))
+            Promise.all(requests_to_run.map(request => db_handle.schema.raw(request)))
         );
     }
 } 

@@ -1,11 +1,11 @@
 "use strict";
 const assert = require('better-assert');
 const validator = require('validator');
-const Thing = require('../index.js');
-const database = require('../database');
 
 
-module.exports = (thing, transaction) => {
+module.exports = (thing, {Thing, transaction}) => {
+    assert( Thing );
+    assert( Thing.database );
     assert( thing.id && validator.isUUID(thing.id) );
     assert( thing.author && validator.isUUID(thing.author) );
 
@@ -23,7 +23,7 @@ module.exports = (thing, transaction) => {
         for(let prop in thing.schema) {
             let prop_spec = thing.schema[prop];
             if( prop_spec.add_to_view ) {
-                assert( prop_spec.required );
+                assert( prop_spec.is_required );
                 let prop_value = thing[prop];
                 assert( prop_value );
                 assert( validator.isUUID(prop_value) );
@@ -36,7 +36,7 @@ module.exports = (thing, transaction) => {
     function add_referred() {
         return Promise.all(
             ((thing.schema._options||{}).additional_views||[])
-            .map(fct => fct(thing, transaction))
+            .map(fct => fct(thing, {Thing, transaction}))
         )
         .then(views_addendums => {
             views = views.concat(

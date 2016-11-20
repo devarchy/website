@@ -1,10 +1,11 @@
+@import './icons.vars.css';
+
 :root {
     --loading_icon: {
         position: relative;
         &::before {
-            font: normal normal normal 14px/1 FontAwesome;
-            content: "\F1CE";
-            animation: fa-spin 2s infinite linear;
+            @apply(--css_icon_loader);
+            animation: css_anim_spin 2s infinite linear;
             position: absolute;
             left: 0;
             color: #666;
@@ -20,7 +21,7 @@
             justify-content: center;
             top: 0;
             height: 100%;
-            padding-left: 1px; /* improve FontAwesome's wrong icon dimensions */
+            padding-left: 1px; /* improve Font Awesome's wrong icon dimensions */
         }
     }
 
@@ -75,4 +76,11 @@
             }
         }
     }
+}
+
+/* copy of Font Awesome's fa-spin */
+@-webkit-keyframes css_anim_spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}100%{-webkit-transform:rotate(359deg);transform:rotate(359deg)}}@keyframes css_anim_spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}100%{-webkit-transform:rotate(359deg);transform:rotate(359deg)}}
+.css_spin {
+    -webkit-animation: css_anim_spin 2s infinite linear;
+    animation: css_anim_spin 2s infinite linear;
 }

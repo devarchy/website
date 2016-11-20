@@ -1,7 +1,6 @@
 "use strict";
 const assert = require('better-assert');
 const validator = require('validator');
-const connection = require('./connection');
 const interpolate = require('../interpolate');
 const Promise = require('bluebird');
 const table_columns = require('./table').columns;
@@ -14,15 +13,14 @@ module.exports = {
     thing: save_thing,
 };
 
-function save_event(thing_id, thing_type, draft, schema, transaction) {
+function save_event(thing_id, thing_type, draft, schema, {Thing, db_handle, transaction}) {
+    assert(Thing);
+    assert(db_handle);
     assert(thing_id);
     assert(thing_type);
     assert(draft);
     assert(schema);
     assert( transaction === undefined || (transaction||{}).rid );
-
-    const Thing = require('../index.js');
-    const knex = connection();
 
     const json_data = Object.assign({}, draft);
 
@@ -62,7 +60,7 @@ function save_event(thing_id, thing_type, draft, schema, transaction) {
         assert(prop==='removed' || schema[prop] && ! schema[prop].value);
     });
 
-    let request = knex('thing_event');
+    let request = db_handle('thing_event');
 
     if( transaction ) {
         request = request.transacting(transaction);
@@ -99,12 +97,11 @@ function save_event(thing_id, thing_type, draft, schema, transaction) {
     });
 }
 
-function save_thing(thing, transaction) {
+function save_thing(thing, {Thing, db_handle, transaction}) {
+    assert( Thing );
+    assert( db_handle );
     assert( thing );
     assert( transaction === undefined || (transaction||{}).rid );
-
-    const Thing = require('../index.js');
-    const knex = connection();
 
     const columns_insert = table_columns.thing_aggregate;
 
@@ -132,7 +129,7 @@ function save_thing(thing, transaction) {
     });
 
     let request =
-        knex
+        db_handle
         .raw(
             [
                 'INSERT INTO thing_aggregate (',

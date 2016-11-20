@@ -1,2 +1,0 @@
-require('./main');
-require('./uniqueness');

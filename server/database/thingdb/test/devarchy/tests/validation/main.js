@@ -1,10 +1,10 @@
 "use strict";
-require('../setup');
 require('mocha');
 const assert = require('better-assert');
-const promise = require('../test-promise')();
-const Thing = require('../../index.js');
-const population = require('../population');
+const Thing = require('../../thing');
+const promise = require('../../../test-promise')(Thing);
+require('../../../setup')(Thing);
+const population = require('../../population');
 
 
 describe('ThingDB Validation', () => {
@@ -13,7 +13,7 @@ describe('ThingDB Validation', () => {
 
     let things_total_count;
 
-    /* not currently using required_props
+    /* required_props currently only used for computed props
     promise.it_validates_if('required nested property is missing', () => {
             const user = new Thing({
                 type: 'user',
@@ -92,6 +92,25 @@ describe('ThingDB Validation', () => {
             },
         }).draft.save(),
         { reason: 'property `name` is missing but according to schema it is required'}
+    );
+
+    promise.it_validates_if("all properties of a required set are missing", () =>
+        new Thing({
+            type: 'resource',
+            draft: {
+                author: population.user.id,
+            },
+        }).draft.save(),
+        { reason: "all of `[resource_url,github_full_name]` are missing but one of them shouldn't be"}
+    );
+    promise.it("but still allows creation when one of the required set is not missing", () =>
+        new Thing({
+            type: 'resource',
+            draft: {
+                author: population.user.id,
+                github_full_name: 'brillout/uaihriuehrqar',
+            },
+        }).draft.save()
     );
 
     promise.it_validates_if("a schema[type][prop].validation.test is failing", () =>

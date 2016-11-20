@@ -6,9 +6,9 @@ export default {
     age,
 };
 
-function points(n) {
+function points(n, {can_return_null}={}) {
     if( ! n && n !== 0 ) {
-        return '?';
+        return can_return_null ? null : '?';
     }
 
     assert(Number.isInteger(n) && n >= 0);
@@ -19,9 +19,9 @@ function points(n) {
     return Math.floor(n / 1000) + 'k';
 }
 
-function date(d, {verbose=false}={}) {
+function date(d, {verbose=false, can_return_null}={}) {
     if( ! d ) {
-        return '?';
+        return can_return_null ? null : '?';
     }
 
     d = new Date(d);
@@ -45,11 +45,11 @@ function date(d, {verbose=false}={}) {
     return month + '-' + year;
 }
 
-function age(d, {verbose}={}) {
+function age(d, {verbose, can_return_null}={}) {
     assert(d===null || d);
 
     if( d===null ) {
-        return '?';
+        return can_return_null?null:'?';
     }
 
     d = new Date(d);

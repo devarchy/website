@@ -3,15 +3,18 @@ const assert = require('assert');
 const knex_setup = require('knex');
 const Promise = require('bluebird'); Promise.longStackTraces();
 const env = require('../util/env');
+const turn_into_error_object = require('./turn_into_error_object');
 
 
-module.exports = setup;
+module.exports = long_term_cache;
 module.exports.close_connection = () => { if( knex ) knex.destroy() };
 
 
 let knex;
 
-function setup ({hash_input, cache_name, entry_expiration, function_to_cache, parse_output, ignore_cache_entry}) {
+function long_term_cache ({hash_input, cache_name, entry_expiration, function_to_cache/*, ignore_cache_entry*/}) {
+    function ignore_cache_entry(output, output_is_error) { return !!output_is_error }
+
     const table_name = 'cache_'+cache_name;
 
     const database_setup = database_setup__factory();
@@ -33,11 +36,34 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
                 setTimeout(() => {throw err},0);
             })
             .then(({output, output_is_error}) => {
+                const ignore_entry = !!output && !!ignore_cache_entry(output, output_is_error);
+                /*
+                console.log(
+                    [
+                        '',
+                        '[cache][input] '+input_hashed,
+                        '[cache][has-entry] '+!!output,
+                    ]
+                    .concat(!!output ? [
+                        '[cache][ignore_entry] '+ignore_entry,
+                        '[cache][entry-is-error] '+output_is_error,
+                        '',
+                    ] : [])
+                    .concat([''])
+                    .join('\n')
+                );
+                //*/
                 if( output ) {
-                    if( ! ignore_cache_entry(output) ) {
+                    if( ! ignore_entry ) {
                         output._comes_from_cache = true;
                         if( output_is_error ) {
-                            throw output;
+                            throw turn_into_error_object(output);
+                            /* doesn't seem to work
+                            const err = new Error('euwraaaaa');
+                            err.name = JSON.stringify(output);
+                            err.message = JSON.stringify(output);
+                            throw turn_into_error_object(output, err);
+                            */
                         }
                         return output;
                     }
@@ -56,10 +82,13 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
                     return output;
                 })
                 .then(output =>
-                    parse_output(output, output_is_error)
-                )
-                .then(output =>
-                    set_cache_entry({input_hashed, output, output_is_error})
+                    Promise.resolve()
+                    .then(() => {
+                        if( ignore_cache_entry(output, output_is_error) ) {
+                            return;
+                        }
+                        return set_cache_entry({input_hashed, output, output_is_error});
+                    })
                     .then(() => output)
                 )
                 .catch(err => {
@@ -67,6 +96,7 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
                 })
                 .then(output => {
                     if( output_is_error ) {
+                        assert(output.stack, output);
                         throw output;
                     }
                     return output;
@@ -74,12 +104,6 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
             });
 
         assert(function_to_cache__promise === null || function_to_cache__promise.then.constructor === Function);
-
-        promise.abort = () => {
-            if( function_to_cache__promise !== null ) {
-                function_to_cache__promise.abort();
-            }
-        };
 
         return promise;
     };
@@ -108,6 +132,12 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
         assert(input_hashed.constructor === String);
         assert(output.constructor === Object);
         assert(output_is_error.constructor === Boolean);
+
+        // don't save error object stuff
+        assert(!output.propertyIsEnumerable('stack'));
+        assert(!output.propertyIsEnumerable('name'));
+        assert(!output.propertyIsEnumerable('message'));
+
         try {
             // clean Object before passing it to knex otherwise knex may throw
             output = JSON.parse(JSON.stringify(output));
@@ -189,7 +219,7 @@ function setup ({hash_input, cache_name, entry_expiration, function_to_cache, pa
                 .then(function(exists) {
                     if (!exists) {
                         return knex.schema.createTable(table_name, function(table) {
-                            table.string('input').primary();
+                            table.text('input').primary();
                             table.timestamp('updated_at').notNullable();
                             table.boolean('output_is_error').notNullable();
                             table.jsonb('output');

@@ -83,10 +83,10 @@ export default class Thing {
 
         const REFERRING_PROPS = ['referred_resource', 'referred_thing', 'referred_tag', 'referred_tagged', ];
         return (
-            Thing.sort(
+         // Thing.sort(
                 Thing.things.all
                 .filter(thing => REFERRING_PROPS.map(prop => thing.draft[prop]||thing[prop]).includes( this.id ))
-            )
+         // )
         );
     } 
 

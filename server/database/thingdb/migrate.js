@@ -1,6 +1,5 @@
 const assert = require('assert');
 const Promise_serial = require('promise-serial');
-const connection = require('./database/connection');
 
 
 module.exports = {
@@ -9,9 +8,8 @@ module.exports = {
 };
 
 
-function recompute_things({filter_properties, filter_fct, dont_cascade_saving, close_connections_when_done, dont_apply_side_effects}={}) {
-    const Thing = require('./');
-
+function recompute_things({Thing, filter_properties, filter_fct, dont_cascade_saving, close_connections_when_done, dont_apply_side_effects}={}) {
+    assert(Thing);
     return (
         filter_properties ?
             Thing.database.load.things(filter_properties) :
@@ -34,9 +32,8 @@ function recompute_things({filter_properties, filter_fct, dont_cascade_saving, c
     });
 }
 
-function events({map_row}) {
-    const knex = connection();
-
+function events({db_handle, map_row}) {
+    assert(db_handle);
     return (
         get_rows()
     )
@@ -55,11 +52,11 @@ function events({map_row}) {
         assert(row.id_row);
         const columns = Object.keys(changes);
         return () =>
-            knex('thing_event')
+            db_handle('thing_event')
             .where('id_row', '=', row.id_row)
             .update(changes);
             /*
-            knex.raw(
+            db_handle.raw(
                 [
                     'UPDATE thing_event SET (',
                         columns.join(', '),
@@ -76,7 +73,7 @@ function events({map_row}) {
     }
 
     function get_rows() {
-        return knex('thing_event').select('*');
+        return db_handle('thing_event').select('*');
     }
 }
 

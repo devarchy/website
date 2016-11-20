@@ -4,6 +4,7 @@
 .css_color_green {
     color: #009a46;
 }
+
 .css_color_contrib {
     /*
     color: #00B76E;
@@ -15,4 +16,7 @@
 }
 .css_color_contrib_light {
     color: #5ab592
+}
+.css_color_contrib_icon {
+    color: #a4dac5
 }

@@ -1,6 +1,6 @@
 "use strict";
 const assert = require('better-assert');
-const Thing = require('../index.js');
+const Thing = require('./thing');
 
 
 const population = module.exports = {
@@ -44,9 +44,9 @@ function create(done) {
 
         assert(false);
 
-        function create_user() {
+        function create_user() { 
             // upserting a user is currently not possible
-            return Thing.database.load.things({github_login: 'brillout'})
+            return Thing.database.load.things({type: 'user', github_login: 'brillout'})
             .then(things => {
                 if( things.length === 1 ) {
                     population.user = things[0];
@@ -63,9 +63,9 @@ function create(done) {
                 population.user = user;
                 return user.draft.save();
             })
-        }
+        } 
 
-        function create_resource() {
+        function create_resource() { 
             return (() => {
                 population.resource = new Thing({
                     type: 'resource',
@@ -78,9 +78,9 @@ function create(done) {
                 population.resources.push(population.resource);
                 return population.resource.draft.save()
             })();
-        }
+        } 
 
-        function create_resources() {
+        function create_resources() { 
             return Promise.all(
                 [
                     'brillout/untrusted-shared-cache',
@@ -99,9 +99,9 @@ function create(done) {
                     return resource.draft.save();
                 })
             )
-        }
+        } 
 
-        function create_tags() {
+        function create_tags() { 
             return Promise.all([
                 (() => {
                     const tag = new Thing({
@@ -128,9 +128,9 @@ function create(done) {
                     return tag2.draft.save()
                 })(),
             ]);
-        }
+        } 
 
-        function create_tagged() {
+        function create_tagged() { 
                 return new Thing({
                     type: 'tagged',
                     referred_resource: population.resource.id,
@@ -140,6 +140,6 @@ function create(done) {
                         author: population.user.id,
                     },
                 }).draft.save()
-        }
+        } 
     }
 }

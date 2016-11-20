@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Thing = require('../database/thingdb');
+const Thing = require('../database');
 const uuid = require('node-uuid');
 const Promise = require('bluebird');
 Promise.longStackTraces();

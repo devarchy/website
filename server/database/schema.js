@@ -1,11 +1,15 @@
 "use strict";
 const assert = require('assert');
+const validator = require('validator');
+const tlds = require('tlds');
 const Promise = require('bluebird'); Promise.longStackTraces();
 const Promise_serial = require('promise-serial');
 const npm_api = require('../util/npm-api');
-const Thing = require('./thingdb');
 const github_api = require('../util/github-api');
+const html_api = require('../util/html-api');
+const normalize_url = require('../util/normalize_url');
 const parse_markdown_catalog = require('../util/parse_markdown_catalog');
+
 
 module.exports = {
     user: { 
@@ -15,13 +19,13 @@ module.exports = {
                 test: val => val.indexOf('/') === -1,
             },
             is_unique: true,
-            required: true,
+            is_required: true,
         },
         github_info: {
             validation: {
                 type: Object,
             },
-            value: thing_self => { 
+            value: (thing_self, {Thing}) => { 
                 // *** Note on user id VS username ***
                 // - official way to retrieve user info; https://api.github.com/users/:username
                 // - undocumented working endpoint; https://api.github.com/user/:id
@@ -34,7 +38,7 @@ module.exports = {
                 const github_info = {};
 
                 return (
-                    github_api.user.get_info({login: github_login, max_delay: Thing.http_max_delay, expected_status_codes: [404]})
+                    github_api.user.get_info({login: github_login, max_delay: Thing.http_max_delay, expected_error_status_codes: [404]})
                 )
                 .then( user_info => {
                     assert( user_info === null || (user_info||0).constructor === Object );
@@ -60,18 +64,19 @@ module.exports = {
                     delete github_info._could_not_connect;
                     return github_info;
                 })
-                .catch(err => {
-                    if( Thing.NetworkConnectionError.check_error_object(err) ) {
+                .catch(resp => {
+                    if( resp.response_connection_error ) {
                         Object.assign(
                             github_info,
                             thing_self.github_info,
                             { _could_not_connect: true } );
                         return github_info;
                     }
-                    throw err;
+                    throw resp;
                 });
             }, 
-            required: true,
+            is_async: true,
+            is_required: true,
         },
     }, 
     user_private_data: { 
@@ -82,7 +87,7 @@ module.exports = {
             validation: {
                 type: 'Thing.user',
             },
-            required: true,
+            is_required: true,
             immutable: true,
             is_unique: true,
             cascade_save: true,
@@ -92,7 +97,7 @@ module.exports = {
                 type: String,
                 test: val => val===null || val.includes('@') && !/\s/.test(val) && val.length>2,
             },
-            value: thing_self => { 
+            value: (thing_self, {Thing}) => { 
 
                 const auth_token = thing_self.auth_token.token;
                 assert(auth_token);
@@ -101,6 +106,10 @@ module.exports = {
                     github_api.user.get_emails({
                         auth_token,
                         max_delay: Thing.http_max_delay,
+                        expected_error_status_codes: [
+                            404, // 404 is returned in case user doesn't exist anymore
+                            401, // 401 is returned when a token doesn't have enough priviledges (some token don't have read email priviledge)
+                        ],
                     })
                 )
                 .then(emails => {
@@ -141,21 +150,23 @@ module.exports = {
                     return email;
                 })
             }, 
+            is_async: true,
         },
         auth_token: {
             validation: {
                 type: Object,
                 test: val => ['github'].includes(val.provider) && (val.token||'').length>5,
             },
-            required: true,
+            is_required: true,
         },
     }, 
     resource: { 
         _options: { 
+            is_required: ['resource_url', 'github_full_name', ],
             // having both the resource and the tag in the `views` property of tagged is enough to view resources of a tag
             // but it isn't enough to view resources in the intersection of several tags
             additional_views: [
-                (thing_self, transaction) =>
+                (thing_self, {Thing, transaction}) =>
                     Thing.database.load.things(
                         {
                             type: 'tagged',
@@ -169,26 +180,90 @@ module.exports = {
                     )
             ],
         }, 
+        resource_url: { 
+            validation: {
+                type: String,
+                test: (val, {Thing}) => validate_normalized_url(normalize_url(val), {Thing}),
+            },
+            is_unique: false, // making `resource_url_normalized` unique is a stronger constraint
+        }, 
+        resource_url_normalized: { 
+            validation: {
+                type: String,
+                test: (val, {Thing}) => validate_normalized_url(val, {Thing}),
+            },
+            value: thing_self => {
+                if( !thing_self.resource_url ) {
+                    return null;
+                }
+                return normalize_url(thing_self.resource_url);
+            },
+            is_async: false,
+            is_unique: true,
+        }, 
+        resource_title: { 
+            validation: {
+                type: String,
+            },
+        }, 
+        resource_description: { 
+            validation: {
+                type: String,
+            },
+        }, 
+        html_info: { 
+            validation: {
+                type: Object,
+            },
+            value: (thing_self, {Thing}) => {
+                const url = thing_self.resource_url;
+                if( ! url ) {
+                    return Promise.resolve(null);
+                }
+                return (
+                    html_api
+                    .get_info({
+                        url,
+                        max_delay: Thing.http_max_delay,
+                    })
+                    .then(resp => {
+                        if( ! resp ) {
+                            const url_with_protocol = normalize_url.ensure_protocol_existence(url);
+                            throw new Thing.ValidationError([
+                                'Could not retrieve information for "'+url_with_protocol+'".',
+                                '\n',
+                                'Is "'+url_with_protocol+'" a correct address?',
+                            ].join(''));
+                        }
+                        return resp;
+                    })
+                );
+            },
+            is_async: true,
+        }, 
         github_full_name: { 
             validation: {
                 type: String,
                 test: val => val.split('/').length === 2,
             },
-            required: true,
             is_unique: true,
         }, 
         github_info: { 
             validation: {
                 type: Object,
             },
-            value: thing_self => {
+            value: (thing_self, {Thing}) => { 
                 // *** Note on user id VS username ***
                 // - official way to retrieve user info; https://api.github.com/repos/:full_name
                 // - no documentation found for following endpoint (there should be though); https://api.github.com/repositories/:id
                 // - repo name can be changed but will be redirected
 
+                if( ! thing_self.github_full_name ) {
+                    return Promise.resolve(null);
+                }
+
                 // we need that for the TRICK below
-                assert( thing_self.github_info===undefined || (thing_self||0).constructor===Object );
+                assert( thing_self.github_info===undefined || (thing_self||0).github_info.constructor===Object );
 
                 const github_full_name = thing_self.github_full_name;
                 assert( github_full_name );
@@ -198,12 +273,16 @@ module.exports = {
                 return Promise.all([
                     github_api
                         .repo
-                        .get_info({full_name: github_full_name, max_delay: Thing.http_max_delay, expected_status_codes: [404]})
+                        .get_info({
+                            full_name: github_full_name,
+                            max_delay: Thing.http_max_delay,
+                            expected_error_status_codes: [404],
+                        })
                         .then( info => {
                             assert( info === null || (info||0).constructor === Object );
                             if( info === null ) {
                                 // we need that for the TRICK below
-                                assert( thing_self.github_info===undefined || (thing_self||0).constructor===Object );
+                                assert( thing_self.github_info===undefined || (thing_self||0).github_info.constructor===Object );
                                 // TRICK: `thing_self.github_info === undefined` <=> this function is being called for a database insertion (and not a database update)
                                 if( thing_self.github_info === undefined ) {
                                     throw new Thing.ValidationError("Could not retrieve repository information from GitHub.\nIs "+github_api.url+github_full_name+" the address of the repository?");
@@ -240,7 +319,10 @@ module.exports = {
                         }),
                     github_api
                         .repo
-                        .get_readme({full_name: github_full_name, max_delay: Thing.http_max_delay})
+                        .get_readme({
+                            full_name: github_full_name,
+                            max_delay: Thing.http_max_delay,
+                        })
                         .then( content => {
                             github_info['readme'] = content;
                         })
@@ -249,32 +331,32 @@ module.exports = {
                     delete github_info._could_not_connect;
                     return github_info;
                 })
-                .catch(err => {
-                    if( Thing.NetworkConnectionError.check_error_object(err) ) {
+                .catch(resp => {
+                    if( resp.response_connection_error ) {
                         Object.assign(
                             github_info,
                             thing_self.github_info,
                             { _could_not_connect: true } );
                         return github_info;
                     }
-                    throw err;
+                    throw resp;
                 });
-            },
-            required: true,
+            }, 
+            is_async: true,
         }, 
         npm_package_name: { 
             validation: {
                 type: String,
                 test: val => val===null || npm_api.is_npm_package_name_valid(val),
             },
-            required: true,
+            is_unique: true,
         }, 
         npm_info: { 
             validation: {
                 type: Object,
                 test: val => val===null || (val||{}).name,
             },
-            value: thing_self => {
+            value: (thing_self, {Thing}) => {
 
                 if( ! thing_self.npm_package_name ) {
                     return Promise.resolve(null);
@@ -285,11 +367,11 @@ module.exports = {
                 return (
                     npm_api.get_package_json(thing_self.npm_package_name)
                 )
-                .catch(err => {
-                    if( err.message === 'Package `' + thing_self.npm_package_name + '` doesn\'t exist' ) {
+                .catch(resp => {
+                    if( resp.response_status_code === 404 ) {
                         throw new Thing.ValidationError("Could not retrieve package.json from NPM.\nIs "+npm_api.url+thing_self.npm_package_name+" the address of the NPM package?");
                     }
-                    throw err;
+                    throw resp;
                 })
                 .then(package_json => {
 
@@ -308,15 +390,14 @@ module.exports = {
                     return npm_info;
                 })
             },
-            required: false,
+            is_async: true,
             required_props: ['name'],
         }, 
         preview: { 
             validation: {
                 type: Object,
-             // test: val => val && (val.tags||0).constructor === Array && (val.tagreqs||0).constructor === Array,
             },
-            value: (thing_self, transaction) => {
+            value: (thing_self, {transaction, Thing}) => {
 
                 assert( thing_self.id );
                 assert( thing_self.type === 'resource' );
@@ -404,28 +485,27 @@ module.exports = {
                 } 
 
             },
-            required: true,
-            required_props: ['tags', 'tagreqs', ],
-        }, 
-        stability: { 
-            validation: {
-                test: val => ['production', 'beta', 'experimental', ].includes(val),
-                type: String,
-            },
+            is_async: true,
+            is_required: true,
+            required_props: ['tags', 'tagreqs', 'number_of_upvotes', 'number_of_downvotes', 'number_of_comments', ],
         }, 
     }, 
     tag: { 
         _options: {
             side_effects: [ 
-                thing_self => {
+                (thing_self, {Thing}) => {
                     if( ! thing_self.markdown_list__github_full_name ) {
                         return null;
                     }
 
-                    assert( thing_self.markdown_list__data.every(c => c.resources.constructor === Array) );
+                    assert( thing_self.markdown_list__entries.every(c => c.resources.constructor === Array) );
 
-                    const resources_all = thing_self.markdown_list__data.map(c => c.resources).reduce((acc, cur) => acc.concat(cur), []);
-                    assert(resources_all.every(({github_full_name, npm_package_name}) => github_full_name && npm_package_name));
+                    const resources_all = thing_self.markdown_list__entries.map(c => c.resources).reduce((acc, cur) => acc.concat(cur), []);
+                    resources_all.every(info => {
+                        assert(!!info.as_web_catalog === !info.as_npm_catalog);
+                        assert(info.as_npm_catalog===undefined || info.as_npm_catalog.github_full_name && info.as_npm_catalog.npm_package_name);
+                        assert(info.as_web_catalog===undefined || info.as_web_catalog.resource_url && info.as_web_catalog.title && info.as_web_catalog.description, JSON.stringify(info, null, 2));
+                    });
 
                     return () => {
                         return (
@@ -437,7 +517,7 @@ module.exports = {
                         .then(() => {});
                     };
 
-                    function save_resources(resources_all) {
+                    function save_resources(resources_all) { 
                         assert(thing_self.id);
                         return (
                             new Thing({
@@ -449,15 +529,27 @@ module.exports = {
                         )
                         .then(([thing__user]) =>
                             Promise_serial(
-                                resources_all.map(({github_full_name, npm_package_name}) => () => {
+                                resources_all.map(info => () => {
+                                    const thing_info = {
+                                        type: 'resource',
+                                        author: thing__user.id,
+                                        draft: {},
+                                    };
+                                    if( info.as_web_catalog ) {
+                                        assert(info.as_web_catalog.resource_url);
+                                        assert(info.as_web_catalog.title);
+                                        assert(info.as_web_catalog.description);
+                                        thing_info.resource_url = info.as_web_catalog.resource_url;
+                                        thing_info.resource_title = info.as_web_catalog.title;
+                                        thing_info.resource_description = info.as_web_catalog.description;
+                                    }
+                                    if( info.as_npm_catalog ) {
+                                        assert(info.as_npm_catalog.github_full_name && info.as_npm_catalog.npm_package_name);
+                                        thing_info.github_full_name = info.as_npm_catalog.github_full_name;
+                                        thing_info.npm_package_name = info.as_npm_catalog.npm_package_name;
+                                    }
                                     return (
-                                        new Thing({
-                                            type: 'resource',
-                                            github_full_name,
-                                            npm_package_name,
-                                            author: thing__user.id,
-                                            draft: {},
-                                        }).draft.save()
+                                        new Thing(thing_info).draft.save()
                                     )
                                     .then(([thing__resource]) =>
                                         new Thing({
@@ -473,9 +565,9 @@ module.exports = {
                                 {parallelize: 50, log_progress: 'markdown list entries upserted to devarchy'}
                             )
                         );
-                    }
+                    } 
 
-                    function check_if_all_resources_are_created(resources_all) {
+                    function check_if_all_resources_are_created(resources_all) { 
                         return (
                             Thing.database.load.things({
                                 type: 'resource',
@@ -483,18 +575,25 @@ module.exports = {
                             })
                         )
                         .then(things => {
-                            resources_all.forEach(({github_full_name, npm_package_name}) => {
-                                assert(
-                                    things.find(t =>
-                                        t.type === 'resource' &&
-                                     // t.github_full_name === github_full_name && t.npm_package_name === npm_package_name
-                                        t.github_full_name === github_full_name
-                                    ),
-                                    "resource missing in postgres: `{github_full_name: '"+github_full_name+"', npm_package_name: '"+npm_package_name+"'}`"
-                                );
+                            resources_all.forEach(info => {
+                                if( info.as_npm_catalog ) {
+                                    const github_full_name = info.as_npm_catalog.github_full_name;
+                                    const npm_package_name = info.as_npm_catalog.npm_package_name;
+                                    assert(
+                                        things.find(t => t.type === 'resource' && t.github_full_name === github_full_name),
+                                        "resource missing in postgres: `{github_full_name: '"+github_full_name+"', npm_package_name: '"+npm_package_name+"'}`"
+                                    );
+                                }
+                                if( info.as_web_catalog ) {
+                                    const resource_url = info.as_web_catalog.resource_url;
+                                    assert(
+                                        things.find(t => t.type==='resource' && t.resource_url === resource_url),
+                                        "resource missing in postgres: `{resource_url: '"+resource_url+"'}`"
+                                    );
+                                }
                             });
                         });
-                    }
+                    } 
 
                 },
             ], 
@@ -504,7 +603,7 @@ module.exports = {
                 type: String,
                 test: val => /^[0-9a-z\-\:]+$/.test(val),
             },
-            required: true,
+            is_required: true,
             is_unique: true,
         }, 
         title: { 
@@ -528,11 +627,11 @@ module.exports = {
             validation: {
                 type: String,
             },
-            value: thing_self => {
+            value: (thing_self, {Thing}) => {
                 if( ! thing_self.markdown_list__github_full_name ) {
                     return Promise.resolve(null);
                 }
-               return (
+                return (
                     github_api.repo.get_info({
                         full_name: thing_self.markdown_list__github_full_name,
                         max_delay: Thing.http_max_delay,
@@ -540,12 +639,49 @@ module.exports = {
                     .then(({description}) => description)
                 );
             },
+            is_async: true,
         }, 
-        markdown_list__data: { 
+        markdown_list__declined: { 
             validation: {
                 type: Array,
             },
-            value: thing_self => {
+            value: (thing_self, {Thing}) => {
+                if( ! thing_self.markdown_list__github_full_name ) {
+                    return Promise.resolve(null);
+                }
+
+                const markdown_list__github_full_name = thing_self.markdown_list__github_full_name;
+
+                return (
+                    github_api.repo.get_file({
+                        full_name: markdown_list__github_full_name,
+                        max_delay: Thing.http_max_delay,
+                        file_path: 'declined.json',
+                    })
+                    .then(content => {
+                        try {
+                            return JSON.parse(content);
+                        }catch(e) {
+                            // we can't assume that package.json is well formated
+                            return null;
+                        }
+                    })
+                    .then(content => {
+                        if( !content ) {
+                            return [];
+                        }
+                        assert(content.constructor===Object);
+                        return Object.keys(content);
+                    })
+                );
+            },
+            is_async: true,
+        }, 
+        markdown_list__entries: { 
+            validation: {
+                type: Array,
+            },
+            value: (thing_self, {Thing}) => {
                 if( ! thing_self.markdown_list__github_full_name ) {
                     return Promise.resolve(null);
                 }
@@ -557,6 +693,7 @@ module.exports = {
                         full_name: markdown_list__github_full_name,
                         max_delay: Thing.http_max_delay,
                         markdown_parsed: false,
+                        dont_use_cache: true,
                     })
                     .then(content => parse_markdown(content))
                 );
@@ -566,20 +703,10 @@ module.exports = {
                         return null;
                     }
 
-                    return parse_markdown_catalog(
-                        content,
-                        {
-                            style: 'npm_catalog',
-                            processor: (type, data) => {
-                                if( type === 'header' && data.text.toLowerCase().includes('learning material') ) {
-                                    return null;
-                                }
-                                return data;
-                            },
-                        }
-                    );
+                    return parse_markdown_catalog(content);
                 } 
             },
+            is_async: true,
         }, 
         parent_tag: { 
             validation: {
@@ -595,7 +722,7 @@ module.exports = {
             validation: {
                 type: 'Thing.tag',
             },
-            required: true,
+            is_required: true,
             immutable: true,
             add_to_view: true,
         },
@@ -603,7 +730,7 @@ module.exports = {
             validation: {
                 type: 'Thing.resource',
             },
-            required: true,
+            is_required: true,
             immutable: true,
             add_to_view: true,
             cascade_save: true,
@@ -626,7 +753,7 @@ module.exports = {
             is_unique: ['author', 'referred_tagged', ],
             // add resource to views
             additional_views: [
-                (thing_self, transaction) =>
+                (thing_self, {Thing, transaction}) =>
                     Thing.database.load.things({id: thing_self.referred_tagged}, {transaction})
                     .then(([thing__tagged]) => {
                         assert( thing__tagged.type === 'tagged' );
@@ -639,7 +766,7 @@ module.exports = {
                 type: 'Thing.tagged',
             },
             add_to_view: true,
-            required: true,
+            is_required: true,
             cascade_save: true,
         },
         rejection_argument: {
@@ -647,7 +774,7 @@ module.exports = {
                 type: String,
                 test: val => val === null || (val||0).constructor===String && val.length>0,
             },
-            required: false, // `false` because the absence of `rejection_argument` means "approved"
+            is_required: false, // `false` because the absence of `rejection_argument` means "approved"
         },
     }, 
     comment: { 
@@ -660,13 +787,13 @@ module.exports = {
             validation: {
                 type: ['Thing.comment', 'Thing.resource', ],
             },
-            required: true,
+            is_required: true,
         },
         referred_resource: {
             validation: {
                 type: 'Thing.resource',
             },
-            required: true,
+            is_required: true,
             cascade_save: true,
             add_to_view: true,
         },
@@ -676,7 +803,7 @@ module.exports = {
             is_unique: ['author', 'referred_thing', 'vote_type', ],
             // add resource
             additional_views: [ 
-                (thing_self, transaction) =>
+                (thing_self, {Thing, transaction}) =>
                     Thing.database.load.things({id: thing_self.referred_thing}, {transaction})
                     .then(things => {
                         assert( things.length === 1);
@@ -699,7 +826,7 @@ module.exports = {
                 test: val => ['upvote', ].includes(val),
                 type: String,
             },
-            required: true,
+            is_required: true,
         },
         is_negative: {
             validation: {
@@ -711,7 +838,26 @@ module.exports = {
                 type: ['Thing.comment', 'Thing.resource', ],
             },
             cascade_save: true,
-            required: true,
+            is_required: true,
         },
     }, 
 };
+
+function validate_normalized_url(val, {Thing}) { 
+    const dn = val.split('/')[0];
+    const dn_msg = "Domain name `"+dn+"`"+(dn!==val?" (of `"+val+"`)":"");
+    if( ! dn.includes('.') ) {
+        throw new Thing.ValidationError(dn_msg+" is missing a dot. The domain name needs to have at least one dot like in `example.org`.");
+    }
+    if( ! validator.isFQDN(dn) ) {
+        throw new Thing.ValidationError(dn_msg+" doesn't seem to exist.");
+    }
+    const tld = dn.split('.').slice(-1)[0];
+    if( ! tlds.includes(tld) ) {
+        throw new Thing.ValidationError("The root `"+tld+"` (in the domain name `"+dn+"`"+(dn!==val?(" of `"+val+"`"):"")+") doesn't seem to exist.");
+    }
+    if( val.endsWith('/') ) {
+        return false;
+    }
+    return true;
+} 

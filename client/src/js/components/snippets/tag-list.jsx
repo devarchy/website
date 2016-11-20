@@ -50,7 +50,7 @@ const ScrollTagList = (() => {
             assert(this.props.tags);
             return (
                 <div
-                  style={Object.assign({paddingLeft: 15, fontSize: '.95em'}, this.props.style)}
+                  style={Object.assign({paddingLeft: 15}, this.props.style)}
                 >{
                     this.props.tags.map(tag => {
                         const scroll_body = (() => {
@@ -134,16 +134,10 @@ const RootTagList = React.createClass({
 
         function LinkHeader(props) {
             assert(props.tag);
-            const img_url = (n =>
-                n.includes('redux')
-                    && "https://cdn.rawgit.com/brillout/awesome-redux/master/redux-logo.svg" ||
-                n.includes('react')
-                    && "https://cdn.rawgit.com/brillout/awesome-react-components/master/react-logo.svg" ||
-                null
-            )(props.tag.name.toLowerCase());
+            const img_url = props.tag.logo__manipulated;
             return (
                 <LinkMixin.component
-                  className={'css_tag'}
+                  className="css_tag css_heading"
                   to={TagPage.route.interpolate({tag_name: props.tag.name})}
                   interceptor={same_page => { if( same_page ) {
                       Scroll.animateScroll.scrollToTop({containerId: SCROLL_CONTAINER_ID, duration: 300, smooth: true});
@@ -158,7 +152,7 @@ const RootTagList = React.createClass({
                           src={img_url}
                         />
                     }
-                    {props.tag.display_title__maniuplated}
+                    {props.tag.display_title__manipulated}
                 </LinkMixin.component>
             );
         }
@@ -187,10 +181,28 @@ const TagListSnippet = (() => {
                 });
             }
 
+            const bucket = (() => {
+                const selected_tag_name = this.props.route.params.tag_name;
+                const BUCKETS = [
+                    ['react-components', 'redux', ],
+                    ['web-apps'],
+                ];
+                const bucket = BUCKETS.find(bucket => bucket.includes(selected_tag_name)) || BUCKETS[0];
+                assert(bucket);
+                return bucket;
+            })();
+
+            const tags =
+                Tag
+                .list_things({only_root: true})
+                .filter(tag => bucket.includes(tag.name))
+                .reverse();
+
+
             // don't alter view while loading
             const tag_list = last_tag_list = is_fetching && last_tag_list ||
                 <RootTagList
-                  tags={Tag.list_things({only_root: true}).reverse()}
+                  tags={tags}
                   route={this.props.route}
                 />;
 

@@ -1,10 +1,10 @@
 "use strict";
-require('../setup');
 require('mocha');
 const assert = require('better-assert');
-const promise = require('../test-promise')();
-const Thing = require('../../index.js');
-const population = require('../population');
+const Thing = require('../../thing');
+require('../../../setup')(Thing);
+const promise = require('../../../test-promise')(Thing);
+const population = require('../../population');
 
 
 describe('ThingDB Validation on uniqueness', () => {

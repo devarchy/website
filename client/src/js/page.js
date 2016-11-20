@@ -3,6 +3,7 @@ import assert from 'assert';
 import router from './router.js';
 import UserInfoSnippet from './components/snippets/userinfo';
 import TagListSnippet from './components/snippets/tag-list';
+import FooterSnippet from './components/snippets/footer';
 
 // - we need this for sever-side rendering
 // - it is the entry point for server-side rendering
@@ -17,15 +18,14 @@ const Section = (() => {
     const _get_page_head = Symbol();
 
     class Section {
-        constructor({node_id, component, element, fetch, also_show_when_fetching, server_side_render, get_page_head}) {
+        constructor({name, node_id, component, element, fetch, also_show_when_fetching, server_side_render, get_page_head}) {
             assert(node_id);
             assert(component || element && fetch);
             assert(!component || component.component);
             assert(server_side_render.constructor === Boolean);
             assert([Boolean, Function].includes(also_show_when_fetching.constructor));
             this.node_id = node_id;
-            this.name = node_id.replace(/^js_/,'');
-            assert(this.name !== this.node_id);
+            this.name = name;
             this.server_side_render = server_side_render;
             this[_component] = component;
             this[_element] = element;
@@ -77,18 +77,28 @@ const Section = (() => {
 
 export default [
     new Section({
+        name: 'userinfo',
         node_id: 'js_userinfo',
         component: UserInfoSnippet,
         also_show_when_fetching: true,
         server_side_render: false,
     }),
     new Section({
+        name: 'footer',
+        node_id: 'js_more',
+        component: FooterSnippet,
+        also_show_when_fetching: true,
+        server_side_render: true,
+    }),
+    new Section({
+        name: 'tag_list',
         node_id: 'js_tag_list',
         component: TagListSnippet,
         also_show_when_fetching: false,
         server_side_render: true,
     }),
     new Section({
+        name: 'content',
         node_id: 'js_content',
         element: function({route: {component}}) {
             if( !component.element ) {

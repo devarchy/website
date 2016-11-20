@@ -1,0 +1,25 @@
+:root {
+    --css_icon_calendar: {
+        /*
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxnPjxwYXRoIGQ9J20zNS44IDUuN3ExLjEgMCAyIDAuOXQwLjggMnYyOC41cTAgMS4yLTAuOCAyLjF0LTIgMC44aC0zMS40cS0xLjIgMC0yLjEtMC45dC0wLjgtMnYtMjguNXEwLTEuMiAwLjgtMnQyLjEtMC45aDIuOHYtMi4xcTAtMS41IDEuMS0yLjZ0Mi41LTFoMS40cTEuNSAwIDIuNSAxLjF0MS4xIDIuNXYyLjFoOC42di0yLjFxMC0xLjUgMS0yLjZ0Mi41LTFoMS41cTEuNCAwIDIuNSAxLjF0MSAyLjV2Mi4xaDIuOXogbS04LjYtMi4xdjYuNHEwIDAuMyAwLjIgMC41dDAuNSAwLjJoMS41cTAuMyAwIDAuNS0wLjJ0MC4yLTAuNXYtNi40cTAtMC4zLTAuMi0wLjV0LTAuNS0wLjJoLTEuNXEtMC4zIDAtMC41IDAuMnQtMC4yIDAuNXogbS0xNy4xIDB2Ni40cTAgMC4zIDAuMiAwLjV0MC41IDAuMmgxLjRxMC4zIDAgMC41LTAuMnQwLjItMC41di02LjRxMC0wLjMtMC4yLTAuNXQtMC41LTAuMmgtMS40cS0wLjMgMC0wLjUgMC4ydC0wLjIgMC41eiBtMjUuNyAzMy41di0yMi44aC0zMS40djIyLjhoMzEuNHogbS0xNC4zLTEyLjhoNXEwLjMgMCAwLjUgMC4ydDAuMiAwLjV2MS40cTAgMC4zLTAuMiAwLjV0LTAuNSAwLjJoLTV2NXEwIDAuNC0wLjIgMC42dC0wLjUgMC4yaC0xLjRxLTAuNCAwLTAuNi0wLjJ0LTAuMi0wLjZ2LTVoLTVxLTAuMyAwLTAuNS0wLjJ0LTAuMi0wLjV2LTEuNHEwLTAuMyAwLjItMC41dDAuNS0wLjJoNXYtNXEwLTAuMyAwLjItMC41dDAuNi0wLjJoMS40cTAuMyAwIDAuNSAwLjJ0MC4yIDAuNXY1eic+PC9wYXRoPjwvZz48L3N2Zz4=");
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='rgb(170,170,170)' width='13' viewBox='0 0 40 40'><g><path d='m35.8 5.7q1.1 0 2 0.9t0.8 2v28.5q0 1.2-0.8 2.1t-2 0.8h-31.4q-1.2 0-2.1-0.9t-0.8-2v-28.5q0-1.2 0.8-2t2.1-0.9h2.8v-2.1q0-1.5 1.1-2.6t2.5-1h1.4q1.5 0 2.5 1.1t1.1 2.5v2.1h8.6v-2.1q0-1.5 1-2.6t2.5-1h1.5q1.4 0 2.5 1.1t1 2.5v2.1h2.9z m-8.6-2.1v6.4q0 0.3 0.2 0.5t0.5 0.2h1.5q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.5q-0.3 0-0.5 0.2t-0.2 0.5z m-17.1 0v6.4q0 0.3 0.2 0.5t0.5 0.2h1.4q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.4q-0.3 0-0.5 0.2t-0.2 0.5z m25.7 33.5v-22.8h-31.4v22.8h31.4z m-14.3-12.8h5q0.3 0 0.5 0.2t0.2 0.5v1.4q0 0.3-0.2 0.5t-0.5 0.2h-5v5q0 0.4-0.2 0.6t-0.5 0.2h-1.4q-0.4 0-0.6-0.2t-0.2-0.6v-5h-5q-0.3 0-0.5-0.2t-0.2-0.5v-1.4q0-0.3 0.2-0.5t0.5-0.2h5v-5q0-0.3 0.2-0.5t0.6-0.2h1.4q0.3 0 0.5 0.2t0.2 0.5v5z'></path></g></svg>");
+        background-repeat: no-repeat;
+        display: inline-block;
+        content: "";
+        width: 13px;
+        height: 13px;
+        margin-left: 4px;
+        margin-bottom: -2px;
+        */
+        /* code should be equivalent to:
+        */
+        font-family: FontAwesome;
+        color: #aaa;
+        content: " \f271";
+    };
+
+    --css_icon_loader: {
+        font: normal normal normal 14px/1 FontAwesome;
+        content: "\F1CE";
+    };
+}

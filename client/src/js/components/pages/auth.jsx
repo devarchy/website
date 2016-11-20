@@ -6,6 +6,8 @@ import {SERVER_URI} from '../../util/server_uri';
 
 import LandingPage from '../pages/landing';
 
+import GoMarkGithub from 'react-icons/lib/go/mark-github';
+
 
 const AuthPage = () =>
     <div className="css_center" style={{fontSize: '1.2em'}}>
@@ -21,9 +23,8 @@ const AuthPage = () =>
                       className="css_color_contrib"
                       style={{position: 'relative', top: 1}}
                     >
-                        <i
-                        className="fa fa-github"
-                        style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -1, paddingRight: 5}}
+                        <GoMarkGithub
+                          style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -2, paddingRight: 4, marginRight: 2}}
                         />
                         Login
                     </span>

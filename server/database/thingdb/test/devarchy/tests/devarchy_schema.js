@@ -1,10 +1,10 @@
 "use strict";
-require('./setup');
 require('mocha');
 const assert = require('assert');
-const promise = require('./test-promise')();
-const population = require('./population');
-const Thing = require('../index.js')
+const Thing = require('../thing')
+require('../../setup')(Thing);
+const promise = require('../../test-promise')(Thing);
+const population = require('../population');
 
 describe("Devarchy's Schema", () => {
 
@@ -27,11 +27,11 @@ describe("Devarchy's Schema", () => {
         )
         .then(([tag]) => {
             assert(tag);
-            assert(tag.markdown_list__data);
-            assert(tag.markdown_list__data.constructor === Array);
-            assert(tag.markdown_list__data.length > 5);
-            assert(tag.markdown_list__data.every(c => c.number_of_all_resources > 0));
-            assert(tag.markdown_list__data.map(c => c.number_of_all_resources).reduce((prev, curr) => prev+curr) > 50);
+            assert(tag.markdown_list__entries);
+            assert(tag.markdown_list__entries.constructor === Array);
+            assert(tag.markdown_list__entries.length > 5);
+            assert(tag.markdown_list__entries.every(c => c.number_of_all_resources > 0));
+            assert(tag.markdown_list__entries.map(c => c.number_of_all_resources).reduce((prev, curr) => prev+curr) > 50);
             Thing.http_max_delay = http_max_delay__org;
             return [tag];
         })

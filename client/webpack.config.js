@@ -55,15 +55,25 @@ module.exports = {
         loaders: [
             {
                 test: new RegExp('\\.woff'+query_arg),
-                loader: "url?limit=10000&mimetype=application/font-woff",
+                loader: "file",
             },
             {
                 test: new RegExp('\\.woff2'+query_arg),
-                loader: "url?limit=10000&mimetype=application/font-woff",
+                loader: "file",
+                include: [
+                    path.resolve(__dirname, "node_modules/"),
+                ],
+            },
+            {
+                test: new RegExp('\\.woff2'+query_arg),
+                loader: "url",
+                include: [
+                    path.resolve(__dirname, "src/"),
+                ],
             },
             {
                 test: new RegExp('\\.ttf'+query_arg),
-                loader: "url?limit=10000&mimetype=application/octet-stream",
+                loader: "file",
             },
             {
                 test: new RegExp('\\.eot'+query_arg),

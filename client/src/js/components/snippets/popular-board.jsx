@@ -19,12 +19,15 @@ const PopularResourcesSnippet = ({i, text, resource_list_data})  => {
         <div
           key={i}
         >
-            <h6
-              className="css_da"
-              style={{marginTop: 5, marginBottom: 3}}
-            >
-                {text}
-            </h6>
+            {
+                text &&
+                    <h6
+                      className="css_da"
+                      style={{marginTop: 5, marginBottom: 3}}
+                    >
+                        {text}
+                    </h6>
+            }
             <ResourceListSnippet.component
               { ... resource_list_data}
             />
@@ -82,8 +85,16 @@ export default {
         const THREE_YEARS = ONE_YEAR*3;
         const SIX_YEARS = ONE_YEAR*6;
 
-        return {
-            sections:
+        let sections =
+            resource_list.some(r => !(r.github_info||{}).created_at) ?
+                [
+                    {
+                    },
+                    {
+                        awaiting_approval: 'ONLY',
+                        text: "Awaiting upvotes",
+                    },
+                ] :
                 [
                     {
                         age_max: ONE_YEAR,
@@ -108,9 +119,13 @@ export default {
                         text: "Awaiting upvotes",
                     },
                 ]
-                .map((spec, i) =>
-                    PopularResourcesSnippet.get_props(
-                        Object.assign({tag, resource_list, resource_requests}, spec, {i})))
+
+        sections = sections.map((spec, i) =>
+            PopularResourcesSnippet.get_props(
+                Object.assign({tag, resource_list, resource_requests}, spec, {i})))
+
+        return {
+            sections,
         };
 
     },

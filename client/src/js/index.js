@@ -54,6 +54,8 @@ const make = create_make();
     make.content.fetch_and_render()
     .then(() => {
         initial_view_rendered = true;
+        timerlog({tag:'dataflow', message: 'initial render done'});
+        install_ga();
     });
 
     rerender.action = () => {
@@ -65,6 +67,7 @@ const make = create_make();
 
 make.userinfo.fetch_and_render();
 make.tag_list.fetch_and_render();
+make.footer.fetch_and_render();
 
 
 export default null;
@@ -139,4 +142,24 @@ function create_make() {
 
     return make;
 
+} 
+
+function install_ga() { 
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    const TRACK_ID = 'UA-5263303-18';
+    const DISABLED = window.localStorage && window.localStorage['disable_tracking'] || window.location.hostname==='localhost';
+
+    if( DISABLED ) {
+        window['ga-disable-'+TRACK_ID] = true;
+        console.log('disabled tracking '+TRACK_ID);
+    }
+
+    window.ga('create', TRACK_ID, 'auto');
+    window.ga('send', 'pageview');
+
+    timerlog({tag:'dataflow', message: 'ga tracking installed'+(DISABLED?' [disabled]':'')});
 } 

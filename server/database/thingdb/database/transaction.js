@@ -2,13 +2,12 @@
 const assert = require('assert');
 const Promise = require('bluebird');
 Promise.longStackTraces();
-const knex = require('./connection');
 
-module.exports = () =>
+module.exports = ({db_handle}) =>
     new Promise(resolve => {
         let trans;
         const transaction_promise =
-            knex().transaction(transaction => {
+            db_handle.transaction(transaction => {
                 trans = transaction;
                 transaction
                 .raw('set transaction isolation level serializable; set constraints all deferred;')
@@ -19,8 +18,8 @@ module.exports = () =>
                         return transaction_promise;
                     };
                     transaction.rollback_promise = () => {
-                        transaction.rollback().catch(() => assert(false));
-                        return transaction_promise.then(() => assert(false)).catch(() => {});
+                        transaction.rollback(new Error('unused generic error')).catch(() => assert(false));
+                        return transaction_promise/*.then(() => setTimeout(() => assert(false),0))*/.catch(() => {});
                     };
                     resolve(transaction);
                 })

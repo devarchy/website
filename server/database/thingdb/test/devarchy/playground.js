@@ -1,11 +1,11 @@
 "use strict";
-require('./setup');
 require('mocha');
 const assert = require('better-assert');
 const Promise = require('bluebird'); Promise.longStackTraces();
-const promise = require('./test-promise')();
+const Thing = require('./thing')
+const promise = require('../test-promise')(Thing);
+require('../setup')(Thing);
 const population = require('./population');
-const Thing = require('../index.js')
 
 
 describe('ThingDB', () => {

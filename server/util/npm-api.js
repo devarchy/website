@@ -1,46 +1,26 @@
-const packageJson = require('package-json');
-const NetworkConnectionError = require('./network_connection_error');
+const fetch = require('./fetch_with_cache');
+const assert = require('assert');
+const is_npm_package_name_valid = require('./npm_package_name_validation').is_npm_package_name_valid;
 
 
 module.exports = {
-    get_package_json: npm_package_name =>
-        make_promise_pushy(() => packageJson(npm_package_name))
-        .catch(err => {
-            const connection_problem_reason =  NetworkConnectionError.check_error_object(err);
-            if( connection_problem_reason ) {
-                throw new NetworkConnectionError("Could not connect to NPM's registry: "+connection_problem_reason);
-            }
-            throw err;
-        }),
+    get_package_json: npm_package_name => retrive_package_json(npm_package_name),
     url: 'https://www.npmjs.com/package/',
-    is_npm_package_name_valid: npm_package_name =>
-        /^[a-zA-Z0-9\-\.\_]+$/.test(npm_package_name) &&
-        /^[a-zA-Z0-9]/.test(npm_package_name) &&
-        /[a-zA-Z0-9]$/.test(npm_package_name) ,
+    is_npm_package_name_valid,
 };
 
+function retrive_package_json(npm_package_name) { 
+    const url = 'http://registry.npmjs.org/'+encodeURIComponent(npm_package_name).replace(/^%40/, '@');
 
-function make_promise_pushy(promise_fct) { 
-    var attempts_left = 10;
-
-    return run_attempt();
-
-    function run_attempt() {
-        return (
-            promise_fct()
-        )
-        .catch(err => {
-            if( err &&
-                [
-                    503, // 503 -> temporary unavailable
-                    502, // 502 -> gateway received invalid response
-                ].includes(err.statusCode)
-            ) {
-                if( --attempts_left > 0 ) {
-                    return run_attempt();
-                }
-            }
-            throw err;
-        });
-    }
+    return (
+        fetch({
+            url,
+            json: true,
+            pushy: true,
+        })
+        .then(resp => {
+            assert(resp.response_body, resp);
+            return resp.response_body;
+        })
+    );
 } 

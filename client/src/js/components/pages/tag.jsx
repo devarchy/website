@@ -75,8 +75,8 @@ export default {
             };
         }
         return {
-            title: tag.display_title__maniuplated,
-            description: tag.description,
+            title: tag.display_title__manipulated,
+            description: tag.description__prefix+' '+tag.description__suffix,
         };
     },
 };

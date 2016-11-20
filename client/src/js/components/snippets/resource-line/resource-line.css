@@ -1,26 +1,4 @@
-.css_resource_body {
-
-    width: 100%;
-    white-space: normal;
-    cursor: initial;
-
-    & .css_resource_details,
-    & .css_resource_details__loading {
-        box-shadow: 1px 2px 4px #ddd;
-        background-color: #FBF9DE;
-        padding: 0 13px;
-        margin: 15px;
-        margin-top: 5px;
-        @nest .css_resource_request & {
-            margin-left: 0px;
-        }
-    }
-    & .css_resource_details__loading {
-        padding: 20px;
-        text-align: center;
-    }
-}
-
+@import '../../../../css/icons.vars.css';
 
 .css_resource {
     width: 100%;
@@ -29,7 +7,6 @@
     text-overflow: ellipsis;
     cursor: pointer;
 }
-
 
 .css_resource_header__stars {
     display: inline-block;
@@ -46,9 +23,28 @@
     text-align: right;
     font-size: 0.9em;
     &::after {
-        font-family: FontAwesome;
+        @apply --css_icon_calendar;
+    }
+}
+.css_resource_header__downvotes,
+.css_resource_header__upvotes {
+    display: inline-block;
+    width: 25px;
+    padding-left: 5px;
+    text-align: left;
+    &::before {
         color: #aaa;
-        content: " \f271";
+        font-size: 1.2em;
+    }
+}
+.css_resource_header__upvotes {
+    &::before {
+        content: "\25B4 ";
+    }
+}
+.css_resource_header__downvotes {
+    &::before {
+        content: "\25BE ";
     }
 }
 .css_resource_header__name {

@@ -10,8 +10,12 @@ export default {
             add_comment () {
                 comment_thing(thing);
             },
-            get comments_all () {
-                return get_all_comments(thing);
+            get comments () {
+                return get_comments(thing, 'referred_thing');
+            },
+            get comments_all() {
+                assert(thing.type==='resource');
+                return get_comments(thing, 'referred_resource');
             },
         };
     }
@@ -39,15 +43,17 @@ function comment_thing(thing) {
     comment_creator.editing = true;
 }
 
-function get_all_comments(thing) {
+function get_comments(thing, prop) {
     if( !thing.id ) return [];
 
     const comment_list =
         thing.referrers
         .filter(t => t.type === 'comment')
-        .filter(t => [t.referred_thing, t.draft.referred_thing].includes(thing.id))
+        .filter(t => [t[prop], t.draft[prop]].includes(thing.id))
         .filter(t => !t.is_new || t.editing)
         .filter(t => !t.removed);
+
+    assert(comment_list.every(t => t.editing===true || t.created_at), comment_list);
 
     return Thing.sort(comment_list);
 }

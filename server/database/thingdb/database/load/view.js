@@ -1,7 +1,6 @@
 "use strict";
 const Promise = require('bluebird');
 Promise.longStackTraces();
-const connection = require('../connection');
 const assert = require('better-assert');
 const load_things = require('./things');
 const util = require('./util');
@@ -9,18 +8,14 @@ const util = require('./util');
 
 module.exports = view;
 
-function view(things_props, {transaction}={}) {
+function view(things_props, {Thing, db_handle, transaction}={}) {
     assert( things_props );
     assert( things_props.constructor === Array )
     assert( things_props.length !== 0 );
     assert( things_props.every(thing_props => thing_props.constructor === Object) );
     assert( transaction === undefined || (transaction||{}).rid );
 
-    const Thing = require('../../index.js');
-
-    const knex = connection();
-
-    var request = knex('thing_aggregate');
+    var request = db_handle('thing_aggregate');
 
     if( transaction ) {
         request = request.transacting(transaction);
@@ -29,7 +24,7 @@ function view(things_props, {transaction}={}) {
     request =
         request.select('*')
         .where({removed: false})
-        .where(knex.raw('id_thing::text'), 'in', function(){
+        .where(db_handle.raw('id_thing::text'), 'in', function(){
 
             let sub_request = this.table('thing_aggregate');
 
@@ -39,14 +34,14 @@ function view(things_props, {transaction}={}) {
 
             sub_request =
                 sub_request
-                .select(knex.raw('unnest(views)'))
+                .select(db_handle.raw('unnest(views)'))
                 .where({removed: false});
 
             things_props.forEach(thing_props => {
                 sub_request =
                     sub_request
-                    .where('views', '&&', knex.raw(
-                        load_things(thing_props, {result_fields: ['id'], transaction, return_raw_request: true})
+                    .where('views', '&&', db_handle.raw(
+                        load_things(thing_props, {result_fields: ['id'], Thing, transaction, return_raw_request: true})
                     ).wrap('array(',')::text[]'))
             });
 

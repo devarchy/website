@@ -13,8 +13,11 @@ import UserTextMixin from '../../mixins/user-text';
 import UserSnippet from '../../snippets/user';
 import LoadingSnippet from '../../snippets/loading';
 
+import GoComment from 'react-icons/lib/go/comment';
+
 import CommentListSnippet from './comment-list';
 
+const saving_text = Symbol();
 
 var CommentSnippet = React.createClass({
     render: function(){ 
@@ -57,8 +60,12 @@ var CommentSnippet = React.createClass({
               className="comment"
               text="Comment"
               ref="usertext"
+              disabled={this.state[saving_text]}
             >
-                <i className={"octicon octicon-comment"} />
+                <i className="octicon octicon-comment"/>
+                {/*
+                <GoComment />
+                */}
             </UserTextMixin.component>
         );
     }, 
@@ -186,7 +193,8 @@ var CommentSnippet = React.createClass({
                       className="css_text_button"
                       onClick={() => {
                           that.refs['usertext'].edit();
-                          that.forceUpdate();
+                       // that.forceUpdate();
+                          rerender.carry_out();
                       }}
                       disabled={disabled}
                     >
@@ -204,8 +212,6 @@ var CommentSnippet = React.createClass({
         } 
     })(), 
     render_comment_edit_buttons: (() => { 
-        const saving_text = Symbol();
-
         return function() {
             if( ! this.props.thing.editing ) {
                 return null;
@@ -240,7 +246,8 @@ var CommentSnippet = React.createClass({
                       className="css_text_button"
                       onClick={() => {
                           that.refs['usertext'].cancel();
-                          that.forceUpdate();
+                       // that.forceUpdate();
+                          rerender.carry_out();
                       }}
                       disabled={disabled}
                     >
@@ -267,7 +274,9 @@ var CommentSnippet = React.createClass({
                       }}
                       disabled={disabled}
                     >
-                        { that.props.thing.is_new ? 'save' : 'update' }
+                        <span className="css_color_contrib">
+                            { that.props.thing.is_new ? 'post' : 'update' }
+                        </span>
                     </button>
                 </span>
             );
@@ -276,7 +285,7 @@ var CommentSnippet = React.createClass({
     render_comment_list: function() { 
         const thing = this.props.thing;
 
-        const comments = thing.commentable.comments_all;
+        const comments = thing.commentable.comments;
 
         if( comments.length === 0 )
             return null;

@@ -48,6 +48,7 @@ const UserTextMixin = React.createClass({
                 { that.state.validation_text_missing && <span className="color-red">{that.props.text} cannot be empty</span> }
                 <textarea
                   autoFocus
+                  disabled={that.props.disabled}
                   defaultValue={thing.draft.text}
                   rows="3"
                   style={{width: '100%', maxWidth: 500}}

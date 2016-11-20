@@ -1,12 +1,11 @@
 "use strict";
-require('./setup');
 require('mocha');
 const assert = require('better-assert');
-const Thing = require('../index.js')
 const expect = require('chai').expect;
-const promise = require('./test-promise')();
-const Promise = require('bluebird');
-Promise.longStackTraces();
+const Promise = require('bluebird'); Promise.longStackTraces();
+const Thing = require('../thing');
+require('../../setup')(Thing, 2);
+const promise = require('../../test-promise')(Thing);
 
 
 describe('ThingDB', () => {
@@ -100,6 +99,7 @@ describe('ThingDB', () => {
         const resource_first = resource_latest === resource2 ? resource : resource2;
         return (
             Thing.database.load.things({
+                type: 'resource',
                 created_at: {
                     operator: '<',
                     value: resource_latest.created_at,
@@ -549,10 +549,12 @@ describe('ThingDB', () => {
         })
         .then( things => {
             assert(things.length === 1);
-            const github_info = things[0].github_info;
+            const thing = things[0];
+            const github_info = thing.github_info;
             assert(github_info);
+            assert(thing.github_full_name === 'brillout/fasterweb');
             if( github_info._could_not_connect ) return;
-            assert(github_info.github_full_name === 'FasterWeb');
+            assert(github_info.name === 'FasterWeb');
             assert(github_info['readme']);
             assert(github_info['readme'].constructor === String);
             assert(github_info['readme'].includes('reduce the average time necessary for loading common JavaScript code'));
@@ -563,6 +565,7 @@ describe('ThingDB', () => {
         const value = new Date(new Date()-1);
         return (
             Thing.database.load.things({
+                type: 'resource',
                 computed_at: {
                     operator: '<=',
                     value,
@@ -574,6 +577,7 @@ describe('ThingDB', () => {
         )
         .then(() =>
             Thing.recompute_all({
+                type: 'resource',
                 computed_at: {
                     operator: '<=',
                     value,
@@ -582,6 +586,7 @@ describe('ThingDB', () => {
         )
         .then( () =>
             Thing.database.load.things({
+                type: 'resource',
                 computed_at: {
                     operator: '<=',
                     value,

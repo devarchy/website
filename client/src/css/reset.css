@@ -22,12 +22,6 @@ html.css_da {
         }
     }
 
-    /* patch Font Awesome's fa-plus wrong dimensionsA */
-    & .fa-plus {
-        margin-top: -5px;
-        margin-bottom: -5px;
-    }
-
     [disabled],
     [disabled] * {
         cursor: default !important;

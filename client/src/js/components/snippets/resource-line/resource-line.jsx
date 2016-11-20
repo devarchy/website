@@ -13,7 +13,8 @@ import LoadingSnippet from '../../snippets/loading';
 
 const ResourceDetailsLoadingWrapper = React.createClass({ 
     propTypes: {
-        github_full_name: React.PropTypes.string.isRequired,
+        github_full_name: React.PropTypes.string,
+        resource_url_normalized: React.PropTypes.string,
         expand: React.PropTypes.bool.isRequired,
     },
     componentWillReceiveProps: function(nextProps) {
@@ -27,12 +28,20 @@ const ResourceDetailsLoadingWrapper = React.createClass({
     },
     render: function() {
 
-     const props = this.props;
+        const props = this.props;
+
+        assert(props.github_full_name || props.resource_url_normalized);
 
         const content = (() => {
             if( ! props.expand ) {
                 return null;
             }
+
+            const resource =
+                this.props.github_full_name ?
+                    Resource.get_by_github_full_name(this.props.github_full_name) :
+                    Resource.get_by_resource_url_normalized(this.props.resource_url_normalized) ;
+
             return (
                 <div
                   onClick={this.props.onClick}
@@ -41,19 +50,23 @@ const ResourceDetailsLoadingWrapper = React.createClass({
                     this.state.loading ?
                         <div className="css_resource_details__loading"><LoadingSnippet.component /></div> :
                         <ResourceDetailsSnippet.component
-                          resource={Resource.get_by_github_full_name(this.props.github_full_name)}
+                          resource={resource}
                           is_request={this.props.is_request}
                           request_view={this.props.request_view}
                         />
                 }</div>
             );
         })();
+
         return content;
      // return <CollapseMixin.component isOpened={!!props.expand}>{content}</CollapseMixin.component>
 
     },
     _fetch: function() {
-        ResourceDetailsSnippet.fetch(this.props.github_full_name)
+        ResourceDetailsSnippet.fetch({
+            github_full_name: this.props.github_full_name,
+            resource_url_normalized: this.props.resource_url_normalized,
+        })
         .then(() => {
             if( this.isMounted() ) {
                 this.setState({loading: false});
@@ -62,27 +75,61 @@ const ResourceDetailsLoadingWrapper = React.createClass({
     },
 }); 
 
-const Header = props => { 
+const UpvoteHeader = props => { 
     const {
-        date_column_first,
-        npm_package_name,
-        description,
-        stars,
-        created_at,
+        resource_name,
+        resource_desc,
+        upvotes,
+        downvotes,
     } = props;
 
     const div_name =
         <div
           className={"css_resource_header__name"}
         >
-            { npm_package_name }
+            { resource_name }
         </div>;
 
     const div_description =
         <div
           className={"css_resource_header__description"}
         >
-            { description }
+            { resource_desc }
+        </div>;
+
+    const div_votes =
+        downvotes*2.5 > (Math.max(upvotes-1,0)) || upvotes<=1 && downvotes>1 ?
+            <div className="css_resource_header__downvotes">{downvotes}</div> :
+            <div className="css_resource_header__upvotes">{upvotes}</div> ;
+
+    return [
+        div_votes,
+        div_name,
+        div_description,
+    ]
+}; 
+
+const GitHubInfoHeader = props => { 
+    const {
+        resource_name,
+        resource_desc,
+        date_column_first,
+        created_at,
+        stars,
+    } = props;
+
+    const div_name =
+        <div
+          className={"css_resource_header__name"}
+        >
+            { resource_name }
+        </div>;
+
+    const div_description =
+        <div
+          className={"css_resource_header__description"}
+        >
+            { resource_desc }
         </div>;
 
     const div_stars =
@@ -112,8 +159,8 @@ const Header = props => {
 
 const RequestHeader = props => { 
     const {
-        npm_package_name,
-        description,
+        resource_name,
+        resource_desc,
         upvotes,
         downvotes,
         comments,
@@ -125,31 +172,23 @@ const RequestHeader = props => {
         <div
           className={"css_resource_header__request_name"}
         >
-            (
-            { npm_package_name }
-            )
+            { resource_name }
         </div>;
 
     const div_description =
         <div
           className={"css_resource_header__request_description"}
         >
-            { description }
+            { resource_desc }
         </div>;
 
     const div_request_line =
         <div className="css_description_line">
-            { upvotes.toString() }
-            {' upvote'+(upvotes===1?'':'s')+', '}
+            { upvotes.toString()+' upvote'+(upvotes===1?'':'s')+', ' }
             { downvotes===0 ? '' : (downvotes.toString()+' downvote'+(downvotes===1?'':'s')+', ') }
-            { request_age }
-            { ' ago,'}
-            {' in `'}
-            { category }
-            { '`' }
-            { comments && (
-                ', '+ comments + ' comment'+(comments===1?'':'s')
-            ) }
+            { request_age+' ago' }
+            { category && (', in `'+category+'`') }
+            { comments && (', '+comments+' comment'+(comments===1?'':'s')) }
         </div>;
 
     return [
@@ -169,7 +208,15 @@ const ResourceLineSnippet = React.createClass({
     },
     render: function() {
 
-        const header = this.props.request_view ? RequestHeader(this.props) : Header(this.props);
+        const header = (() => {
+            if( this.props.request_view ) {
+                return RequestHeader(this.props);
+            }
+            if( this.props.stars ) {
+                return GitHubInfoHeader(this.props);
+            }
+            return UpvoteHeader(this.props);
+        })();
 
         return (
             <div
@@ -182,6 +229,7 @@ const ResourceLineSnippet = React.createClass({
               { header[3] }
               <ResourceDetailsLoadingWrapper
                 github_full_name={this.props.github_full_name}
+                resource_url_normalized={this.props.resource_url_normalized}
                 expand={this.state.expand}
                 is_request={this.props.is_request}
                 request_view={this.props.request_view}
@@ -195,7 +243,7 @@ const ResourceLineSnippet = React.createClass({
 
 export default {
     component: ResourceLineSnippet,
-    get_props: ({resource, date_column_first, addition_request_view, is_request}) => {
+    get_props: ({resource, date_column_first, addition_request_view, category, is_request}) => {
         assert( resource.constructor === Resource);
         assert( [true, false, undefined].includes(date_column_first) );
 
@@ -204,28 +252,30 @@ export default {
             upvotes,
             downvotes,
             comments,
-            request_age,
-            category;
+            request_age;
 
-        if( addition_request_view ) {
+        if( addition_request_view || !(resource.github_info||{}).stars ) {
             upvotes = resource.preview.number_of_upvotes||0;
             downvotes = resource.preview.number_of_downvotes||0;
+        }
+        if( addition_request_view ) {
             comments = resource.preview.number_of_comments || null;
             request_age = pretty_print.age(resource.created_at, {verbose: true});
-            category = addition_request_view;
         } else {
-            created_at = pretty_print.date(resource.github_info.created_at);
-            stars = pretty_print.points(resource.github_info.stargazers_count);
+            created_at = pretty_print.date((resource.github_info||{}).created_at, {can_return_null: true});
+            stars = pretty_print.points((resource.github_info||{}).stargazers_count, {can_return_null: true});
         }
-        const {description, github_full_name, npm_package_name} = resource;
+        const {resource_name, resource_desc} = resource;
+        const {github_full_name, resource_url_normalized} = resource;
 
         return {
-            date_column_first,
             github_full_name,
-            description,
-            npm_package_name,
-            stars,
+            resource_url_normalized,
+            resource_name,
+            resource_desc,
+            date_column_first,
             created_at,
+            stars,
             upvotes,
             downvotes,
             comments,

@@ -1,0 +1,49 @@
+:root {
+    --footer_height: 180px;
+}
+
+.css_footer {
+    position: absolute;
+    bottom: 0;
+    height: var(--footer_height);
+    padding-bottom: 14px;
+    box-sizing: border-box;
+    width: 100%;
+
+    display: flex;
+    align-items: flex-end;
+    align-content: flex-end;
+    justify-content: center;
+    flex-wrap: wrap;
+
+}
+.css_more {
+    display: flex;
+    flex-direction: column;
+    & a.css_da {
+        color: #777 !important;
+    }
+    margin-bottom: 10px;
+    position: relative;
+
+    & > :not(.css_more_icon) {
+        position: relative;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 0.4s;
+        @nest .css_footer:hover & {
+            opacity: 1;
+            transition: opacity 2s;
+        }
+    }
+    & > .css_more_icon {
+        @nest .css_footer:hover & {
+            transition: opacity 0.4s;
+            opacity: 0;
+        }
+        opacity: 1;
+        transition: opacity 2s;
+    }
+}
+
+

@@ -9,13 +9,14 @@
     padding-right: 10px;
     padding-left: var(--icon_width);
     color: #444;
-    font-size: 1.4rem;
+    font-size: 1.45rem;
 
     & .css_tag_icon {
         position: absolute;
         width: var(--icon_width);
         margin-left: calc(var(--icon_width) * -1);
-        height: 100%;
+        height: 90%;
+        top: 7%;
         display: block;
         text-align: center;
         /* don't know why autoprefixer doesn't add -wekit- prefix */

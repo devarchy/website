@@ -16,7 +16,7 @@ const URI_BASE = config.protocol + HOST + ':' + config.port;
 const GITHUB_SESSION_USERNAME = process.env.GITHUB_SESSION_USERNAME;
 const GITHUB_SESSION_COOKIE = process.env.GITHUB_SESSION_COOKIE;
 const DEVARCHY_SESSION_COOKIE = process.env.DEVARCHY_SESSION_COOKIE;
-if( ! GITHUB_SESSION_COOKIE || ! GITHUB_SESSION_USERNAME ) { throw new Error('env variable missing') }
+if( ! GITHUB_SESSION_COOKIE || ! GITHUB_SESSION_USERNAME || ! DEVARCHY_SESSION_COOKIE) { throw new Error('env variable missing') }
 
 const jar = http.jar();
 jar.setCookie(

@@ -3,6 +3,7 @@ import Thing from './thing';
 import Resource from './resource';
 import Promise from 'bluebird';
 import clean_sentence from 'clean-sentence'
+import normalize_url from '../util/normalize_url';
 
 Promise.longStackTraces();
 
@@ -16,11 +17,14 @@ class Tag extends Thing {
     } 
 
     get description() { 
+        assert(false);
+        /*
         let desc =
             this.markdown_list__description ||
             this.definition;
         desc = clean_sentence(desc||'');
         return desc;
+        */
     } 
 
     get display_title() { 
@@ -58,22 +62,43 @@ class Tag extends Thing {
         );
     } 
 
-    get description__manipulated() {
-        if( this.markdown_list__github_full_name === 'brillout/awesome-redux' ) {
-            return 'Catalog of Redux libraries.';
-        }
-        return this.description;
-    }
-    get display_title__maniuplated(){
+    get description__prefix() { 
+        return 'Catalog of';
+    } 
+    get description__suffix() { 
+        return this.display_title__manipulated+'.';
+    } 
+    get display_title__manipulated(){ 
         if( this.markdown_list__github_full_name === 'brillout/awesome-redux' ) {
             return 'Redux Libraries';
         }
-        return strip_awesome(this.display_title);
+
+        return (
+            capitalize_words(
+                strip_awesome(this.display_title)
+            )
+        );
 
         function strip_awesome(str) {
             return str.replace(/^awesome /i,'');
         }
-    }
+
+        function capitalize_words(str) {
+            return str.split(' ').map(w => w[0].toUpperCase()+w.slice(1)).join(' ');
+        }
+    } 
+    get logo__manipulated(){ 
+        const name = this.name.toLowerCase();
+        return (
+            name.includes('redux')
+                && "https://cdn.rawgit.com/brillout/awesome-redux/master/redux-logo.svg" ||
+            name.includes('react')
+                && "https://cdn.rawgit.com/brillout/awesome-react-components/master/react-logo.svg" ||
+            name.includes('web')
+                && "https://cdn.rawgit.com/brillout/awesome-web-apps/a984802d99519a6909466a1bd1f70265d2d7c827/web-logo.svg" ||
+                    null
+        );
+    } 
 
     get child_tags() { 
         assert(this.id);
@@ -121,20 +146,20 @@ class Tag extends Thing {
 
     get resource_reqs() { 
         assert( this.is_markdown_list );
-        assert( this.markdown_list__data );
+        assert( this.markdown_list__entries );
         return (
-            Resource.list_things({tags: [this], order: {latest_requests: true}})
+            Resource.list_things({tags: [this], order: {latest_requests: true}, include_declined: true})
             .filter(resource =>
                 resource
                 .tagrequests
-                .some(tag => tag.markdown_list_tag === this)
+                .some(({tag__markdown_list}) => tag__markdown_list === this)
             )
         );
     } 
 
     get is_markdown_list() { 
         return (
-            !! this.markdown_list__data
+            !! this.markdown_list__entries
         );
     } 
 
@@ -145,6 +170,18 @@ class Tag extends Thing {
         }
         return parent_tag.is_markdown_list || parent_tag.is_markdown_category;
     } 
+
+    includes_resource(resource) {
+        return (
+            this.tagged_resources
+            .find(r =>
+                resource.github_full_name
+                    && resource.github_full_name === (r.as_npm_catalog||{}).github_full_name ||
+                resource.resource_url_normalized
+                    && resource.resource_url_normalized === normalize_url((r.as_web_catalog||{}).resource_url)
+            )
+        );
+    }
 
     static order() { 
         return [
@@ -174,7 +211,8 @@ class Tag extends Thing {
         return super.result_fields.concat([
             'name',
             'definition',
-            'markdown_list__data',
+            'markdown_list__entries',
+            'markdown_list__declined',
             'markdown_list__github_full_name',
             'markdown_list__description',
         ]);

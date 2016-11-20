@@ -1,16 +1,15 @@
 "use strict";
+const assert = require('assert');
 
-let Thing;
-
-module.exports = () => {
-    Thing = require('../index.js');
-    validate_coarse();
-    walk_on_schema();
+module.exports = ({Thing}) => {
+    assert(Thing);
+    assert(Thing.database);
+    validate_coarse({Thing});
+    walk_on_schema({Thing});
 };
 
 
-function validate_coarse() {
-
+function validate_coarse({Thing}) {
     if( ! Thing.schema ) {
         throw new Thing.SchemaError('Thing.schema should be an object');
     }
@@ -19,7 +18,7 @@ function validate_coarse() {
     }
 }
 
-function walk_on_schema() {
+function walk_on_schema({Thing}) {
     Object
     .entries(Thing.schema)
     .forEach(keyval => {
@@ -29,13 +28,13 @@ function walk_on_schema() {
         validate_thing(thing_type, thing_spec);
 
         Object
-        .entries(Thing.schema[thing_type])
+        .entries(thing_spec)
         .forEach(keyval => {
             const prop_name = keyval[0];
             const prop_spec = keyval[1];
 
             if(prop_name === '_options') {
-                validate_options(prop_spec);
+                validate_options(prop_spec, thing_spec);
             }
             else {
                 validate_prop(prop_name, prop_spec);
@@ -57,13 +56,14 @@ function validate_prop(name, spec) {
     is_subset(Object.keys(spec), [
         'validation',
         'order',
-        'required',
+        'is_required',
         'required_props',
         'value',
         'add_to_view',
         'cascade_save',
         'immutable',
         'is_unique',
+        'is_async',
         // 'allow_multiple_authors', // TODO
     ]);
 
@@ -95,12 +95,29 @@ function validate_prop(name, spec) {
     }
 }
 
-function validate_options(spec) {
+function validate_options(spec, thing_spec) {
     const keys = Object.keys(spec);
 
     if( keys.length === 0 ) throw new Thing.SchemaError('empty options found');
 
-    is_subset(keys, [ 'additional_views', 'is_unique', 'side_effects', 'is_private', ])
+    is_subset(keys, [
+        'additional_views',
+        'is_unique',
+        'side_effects',
+        'is_private',
+        'is_required',
+    ]);
+
+    if( spec.is_required ) {
+        if( ! ((spec.is_required||[]).length>0) ) {
+            throw new Thing.SchemaError('`_options.is_required` should be a non-empty Array');
+        }
+        spec.is_required.forEach(prop => {
+            if( ! thing_spec[prop] ) {
+                throw new Thing.SchemaError('`_options.is_required` includes `'+prop+'` but it is not defined in the schema');
+            }
+        });
+    }
 }
 
 function is_subset(arr_subset, arr) {

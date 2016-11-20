@@ -1,8 +1,6 @@
 const deasync = require('deasync');
 
-module.exports = function(){
-    const Thing = require('../index.js');
-
+module.exports = function(Thing){
     return deasync(function(cb){
         Thing.database.load.things({})
         .then(things => {

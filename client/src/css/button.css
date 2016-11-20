@@ -52,15 +52,6 @@ button.css_primary_button {
     &.css_unpressed_button {
         background-color: transparent;
     }
-
-    & > i {
-        margin-right: 8px;
-        &.fa-plus {
-            vertical-align: middle;
-            opacity: 0.5;
-            font-size: 1.5em;
-        }
-    }
 }
 
 button.css_text_button {

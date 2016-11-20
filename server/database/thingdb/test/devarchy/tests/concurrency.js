@@ -1,13 +1,12 @@
 "use strict";
-require('./setup');
 require('mocha');
 const assert = require('better-assert');
-const node_assert = require('assert');
-const chai_assert = require('chai').assert;
-const promise = require('./test-promise')();
-const Thing = require('../index.js');
-const population = require('./population');
-const connection = require('../database/connection');
+const assert_node = require('assert');
+const assert_chai = require('chai').assert;
+const Thing = require('../thing');
+const promise = require('../../test-promise')(Thing);
+require('../../setup')(Thing);
+const population = require('../population');
 
 
 describe('ThingDB Concurrent Safety', () => {
@@ -44,22 +43,21 @@ describe('ThingDB Concurrent Safety', () => {
                 }).draft.save()
                 .then(things => {
                     // make sure that retries return correctly
-                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                    assert_node(things.length===2, JSON.stringify(things, null, 2))
                 })
             )
         )
         .then(() => {
-            const knex = connection();
             return (
-                knex('thing_event')
+                Thing.db_handle('thing_event')
                 .where({"type": 'tagged'})
                 .orderBy('created_at')
             )
             .then(events => {
-                chai_assert.isAtLeast(events.length, 19);
+                assert_chai.isAtLeast(events.length, 19);
                 const thing_id = events[events.length-1].id_thing;
                 const thing_events = events.filter(e => e.id_thing === thing_id);
-                chai_assert.equal(thing_events.length, 19);
+                assert_chai.equal(thing_events.length, 19);
                 thing_events.forEach((e, i) => {
                     assert( [false, true].includes(e.json_data.removed) );
                     if( i !== 0 ) {
@@ -92,7 +90,7 @@ describe('ThingDB Concurrent Safety', () => {
                 }).draft.save()
                 .then(things => {
                     // make sure that retries return correctly
-                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                    assert_node(things.length===2, JSON.stringify(things, null, 2))
                 }),
                 new Thing({
                     type: 'tagged',
@@ -105,7 +103,7 @@ describe('ThingDB Concurrent Safety', () => {
                 }).draft.save()
                 .then(things => {
                     // make sure that retries return correctly
-                    node_assert(things.length===2, JSON.stringify(things, null, 2))
+                    assert_node(things.length===2, JSON.stringify(things, null, 2))
                 }),
             ])
             .reduce((prev, curr) => prev.concat(curr), [])

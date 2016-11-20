@@ -11,6 +11,8 @@ import PopularBoardSnippet from '../popular-board';
 import AddResourceSnippet from '../../snippets/add-resource';
 import CollapseMixin from '../../mixins/collapse';
 
+import FaPlus from 'react-icons/lib/fa/plus';
+
 
 const ResourceAdder = React.createClass({ 
     propTypes: {
@@ -33,9 +35,13 @@ const ResourceAdder = React.createClass({
                       className={this.state.expanded?"":"css_color_contrib"}
                       style={{transition: 'color 0.5s'}}
                     >
-                        <i
-                          className="fa fa-plus css_da"
-                          style={{transform: this.state.expanded && 'rotate(45deg)', transition: 'transform 0.3s'}}
+                        <FaPlus
+                          className="css_up_1px"
+                          style={{
+                            fontSize: '1.1em',
+                            transform: this.state.expanded && 'rotate(45deg)',
+                            transition: 'transform 0.3s',
+                          }}
                         />
                         {' '}
                         <span>
@@ -72,9 +78,9 @@ const CategorySnippet = React.createClass({
 
         const section__header = (() => {
             return (
-                this.props.depth === 1 && <h2 className="css_category_header">{this.props.display_title}</h2> ||
-                this.props.depth === 2 && <h3 className="css_category_header">{this.props.display_title}</h3> ||
-                this.props.depth === 3 && <h5 className="css_category_header">{this.props.display_title}</h5>
+                this.props.depth === 1 && <h2 className="css_category_header css_heading">{this.props.display_title}</h2> ||
+                this.props.depth === 2 && <h3 className="css_category_header css_heading">{this.props.display_title}</h3> ||
+                this.props.depth === 3 && <h5 className="css_category_header css_heading">{this.props.display_title}</h5>
             );
         })();
 
@@ -124,7 +130,7 @@ const ResourceCategoriesSnippet = props => {
 
 export default {
     component: ResourceCategoriesSnippet,
-    get_props: function({tag, resource_list, resource_requests__map, resource_requests}) {
+    get_props: function({tag, resource_list, resources_awaiting_upvotes, resource_requests}) {
         assert(tag);
         assert(tag.constructor === Tag);
         assert(tag.is_markdown_list || tag.is_markdown_category);
@@ -135,12 +141,25 @@ export default {
                 assert(tag__child.is_markdown_category);
                 assert(1 <= tag__child.depth && tag__child.depth <= 3);
              // const resource_list__child = Resource.list_things({tags: [tag__child], list: resource_list, awaiting_approval: 'INCLUDE'});
-                const resource_list__child = tag__child.tagged_resources.map(({github_full_name}) => {
-                    const resource = Resource.get_by_github_full_name(github_full_name);
-                    assert(resource, "couldn't find "+github_full_name);
-                    return resource;
-                });
-                const resource_requests__child = resource_requests__map[tag__child.id]||[];
+                const resource_list__child =
+                    tag__child
+                    .tagged_resources
+                    .map(r => {
+                        const github_full_name = (r.as_npm_catalog||{}).github_full_name;
+                        const resource_url = (r.as_web_catalog||{}).resource_url;
+                        if( github_full_name ) {
+                            const resource = Resource.get_by_github_full_name(github_full_name);
+                            assert(resource, "couldn't find "+github_full_name);
+                            return resource;
+                        }
+                        if( resource_url ) {
+                            const resource = Resource.get_by_resource_url(resource_url);
+                            assert(resource, "couldn't find "+resource_url);
+                            return resource;
+                        }
+                        assert(false);
+                    });
+                const resource_requests__child = resources_awaiting_upvotes[tag__child.id]||[];
              // const resource_requests__child = Resource.list_things({tags: [tag__child], awaiting_approval: 'ONLY', list: resource_requests});
                 return {
                     key: tag__child.id,
@@ -155,7 +174,7 @@ export default {
                     popular_board: (
                         resource_list__child.length === 0 ? null : PopularBoardSnippet.get_props({tag: tag__child, resource_list: resource_list__child, resource_requests: resource_requests__child})
                     ),
-                    resource_categories: this.get_props({tag: tag__child, resource_list, resource_requests__map, resource_requests}),
+                    resource_categories: this.get_props({tag: tag__child, resource_list, resources_awaiting_upvotes, resource_requests}),
                 };
             }),
         };

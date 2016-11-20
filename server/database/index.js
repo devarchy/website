@@ -1,8 +1,10 @@
-const Thing = require('./thingdb');
+const ThingDB = require('./thingdb');
 const connection = require('./connection');
 const schema = require('./schema');
 
-Thing.database.connection = connection;
-Thing.schema = schema;
+const Thing = new ThingDB({
+    connection,
+    schema,
+});
 
 module.exports = Thing;

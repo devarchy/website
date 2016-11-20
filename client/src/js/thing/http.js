@@ -1,7 +1,7 @@
 import assert from 'assert';
 import timerlog from 'timerlog';
 import http from '../util/http';
-import {is_npm_package_name_valid} from '../util/npm';
+import {is_npm_package_name_valid} from '../util/npm_package_name_validation';
 import Promise from 'bluebird';
 import {SERVER_URI} from '../util/server_uri';
 Promise.longStackTraces();
@@ -195,7 +195,7 @@ function get_markdown_tags(things) {
     const markdown_tags = [];
 
     things.forEach(thing => {
-        if( thing.markdown_list__data ) {
+        if( thing.markdown_list__entries ) {
             add_markown_tags(thing);
         }
     });
@@ -203,10 +203,10 @@ function get_markdown_tags(things) {
     return markdown_tags;
 
     function add_markown_tags(thing) {
-        const categories = thing.markdown_list__data;
+        const categories = thing.markdown_list__entries;
         assert(categories.constructor === Array);
         const thing__categories = {};
-        categories.forEach(({id, text, resources, header_description, parent_category_id}) => {
+        categories.forEach(({id, text, resources, header_description, parent_category_id, is_npm_section, is_web_section}) => {
             const parent_tag =
                 parent_category_id===null ?
                     thing :
@@ -219,10 +219,15 @@ function get_markdown_tags(things) {
             id = Tag.category__get_global_id(id, thing.id);
             assert(id);
 
-            assert(resources.every(r => r.github_full_name && r.npm_package_name));
+            resources.forEach(r => {
+                assert(!!r.as_npm_catalog !== !!r.as_web_catalog, JSON.stringify(r, null, 2));
+                assert(!r.as_npm_catalog || r.as_npm_catalog.github_full_name && r.as_npm_catalog.npm_package_name, JSON.stringify(r, null, 2));
+                assert(!r.as_web_catalog || r.as_web_catalog.resource_url && r.as_web_catalog.title && r.as_web_catalog.description, JSON.stringify(r, null, 2));
+            });
+
             const tagged_resources = resources
                 // TODO - figure out what went wrong with these two npm packages
-                .filter(({npm_package_name}) => !['redux-remote-monitor', 'relay-nested-routes'].includes(npm_package_name))
+                .filter(r => !r.as_npm_catalog || !['redux-remote-monitor', 'relay-nested-routes'].includes(r.as_npm_catalog.npm_package_name))
 
             const category_tag = new Thing({
                 type: 'tag',
@@ -233,6 +238,8 @@ function get_markdown_tags(things) {
                 tagged_resources,
                 title: text,
                 definition: header_description,
+                is_npm_section,
+                is_web_section,
             });
             thing__categories[category_tag.id] = category_tag;
             markdown_tags.push(category_tag);

@@ -10,45 +10,36 @@ module.exports = {
     correctness,
     correctness_and_completness_without_draft,
     correctness_and_completness_with_draft,
+    assert: {
+        correctness: assertize(correctness),
+        correctness_and_completness_without_draft: assertize(correctness_and_completness_without_draft),
+        correctness_and_completness_with_draft: assertize(correctness_and_completness_with_draft),
+    },
 };
-Object.keys(module.exports)
-.forEach(fct => {
-    (module.exports.assert = module.exports.assert || {})[fct] = function() {
-        const ValidationError = require('../index.js').ValidationError;
-        try {
-            module.exports[fct].apply(null, arguments);
-        }
-        catch(err) {
-            assert(new ValidationError('foo').constructor === ValidationError);
-            if( err.constructor === ValidationError ) {
-                throw new AssertionError({message: err.message});
-            }
-            throw err;
-        }
-    };
-});
 
 
-function correctness(thing) {
-    validate(thing, false, false);
+function correctness(thing, {Thing}) {
+    validate(thing, false, false, {Thing});
 }
 
-function correctness_and_completness_without_draft(thing) {
-    validate(thing, true, false);
+function correctness_and_completness_without_draft(thing, {Thing}) {
+    validate(thing, true, false, {Thing});
 }
 
-function correctness_and_completness_with_draft(thing) {
-    validate(thing, true, true);
+function correctness_and_completness_with_draft(thing, {Thing}) {
+    validate(thing, true, true, {Thing});
 }
 
 
-function validate(thing, validate_completness, validate_completness_with_draft) {
+function validate(thing, validate_completness, validate_completness_with_draft, {Thing}) { 
+    assert(Thing);
+    assert(Thing.database);
 
-    validate_schema();
+    validate_schema({Thing});
 
-    const schema_missing_error = validate_if_schema_exists_for_type(thing);
+    const schema_missing_error = validate_if_schema_exists_for_type(thing, {Thing});
     if( schema_missing_error )
-        throw_errors(thing, [schema_missing_error]);
+        throw_errors(thing, [schema_missing_error], {Thing});
 
     let errors = [];
 
@@ -58,6 +49,7 @@ function validate(thing, validate_completness, validate_completness_with_draft) 
             schema: thing.schema,
             validate_completness: false,
             schema_addendum: schema_common.draft,
+            Thing,
         })
     );
 
@@ -67,6 +59,7 @@ function validate(thing, validate_completness, validate_completness_with_draft) 
             schema: thing.schema,
             validate_completness: false,
             schema_addendum: schema_common.thing,
+            Thing,
         })
     );
 
@@ -85,6 +78,7 @@ function validate(thing, validate_completness, validate_completness_with_draft) 
                 schema: thing.schema,
                 validate_completness: true,
                 schema_addendum: schema_common.thing,
+                Thing,
             })
         );
     }
@@ -93,12 +87,13 @@ function validate(thing, validate_completness, validate_completness_with_draft) 
         validate_immuatibilty(thing, thing.draft, thing.schema)
     );
 
-    throw_errors(thing, errors);
+    throw_errors(thing, errors, {Thing});
 
-};
+}; 
 
-
-function validate_props(arg) {
+function validate_props(arg) { 
+    assert(arg.Thing);
+    assert(arg.Thing.ValidationError);
     assert(arg.object);
     assert(arg.schema);
     assert(arg.schema_addendum);
@@ -132,7 +127,7 @@ function validate_props(arg) {
         if( ! arg.validate_completness ) {
             continue;
         }
-        if( ! prop_spec.required ) {
+        if( ! prop_spec.is_required ) {
             continue;
         }
 
@@ -142,8 +137,15 @@ function validate_props(arg) {
         }
 
         let value = arg.object[prop];
-        if( equals_missing(value) ) {
+        if( is_missing(value) ) {
             errors.push('property `'+prop+'` is missing but according to schema it is required');
+        }
+    }
+
+    if( arg.validate_completness ) {
+        const required_props = (arg.schema._options||{}).is_required;
+        if( required_props && required_props.every(prop => is_missing(arg.object[prop])) ) {
+            errors.push('all of `['+required_props.join(',')+"]` are missing but one of them shouldn't be");
         }
     }
 
@@ -155,8 +157,8 @@ function validate_props(arg) {
         }
 
         let value = arg.object[prop];
-        if( equals_missing(value) ) {
-            errors.push('property `'+prop+'` is missing but it is always required');
+        if( is_missing(value) ) {
+            errors.push('property `'+prop+'` is missing but according to schema it is a required property');
         }
     }
 
@@ -187,7 +189,7 @@ function validate_props(arg) {
 
         let test = prop_spec.validation.test;
         if( test ) {
-            if( ! test(value) ) {
+            if( ! test(value, {Thing: arg.Thing}) ) {
                 errors.push('property `'+prop+'` with value `'+value+'` failed validation test provided by schema');
             }
         }
@@ -197,15 +199,15 @@ function validate_props(arg) {
         const required_props = (prop_spec||{}).required_props;
         if( required_props ) {
             required_props.forEach(p => {
-                if( equals_missing(value[p]) ) {
+                if( is_missing(value[p]) ) {
                     errors.push('proprety `'+p+'` of `'+prop+'` is missing but it is required');
                 }
             });
         }
     }
-}
+} 
 
-function validate_immuatibilty(thing, draft, schema) {
+function validate_immuatibilty(thing, draft, schema) { 
     const errors = [];
     for(var prop in draft) {
         if( ((schema||{})[prop]||{}).immutable ) {
@@ -215,12 +217,11 @@ function validate_immuatibilty(thing, draft, schema) {
         }
     }
     return errors;
-}
+} 
 
-
-function throw_errors(thing, errors) {
-    const Thing = require('../index.js');
-
+function throw_errors(thing, errors, {Thing}) { 
+    assert(Thing);
+    assert(Thing.database);
     assert(errors.constructor === Array);
 
     if( errors.length > 0 ) {
@@ -236,23 +237,40 @@ function throw_errors(thing, errors) {
             .join('\n')
         );
     }
-}
+} 
 
-
-function validate_if_schema_exists_for_type(thing) {
-    const Thing = require('../index.js');
+function validate_if_schema_exists_for_type(thing, {Thing}) { 
+    assert(Thing);
+    assert(Thing.database);
 
     if( ! Thing.schema[thing.type] ) {
         return 'a thing has type `'+thing.type+'` but no schema for `'+thing.type+'` has been provided, i.e. `Thing.schema['+thing.type+']==undefined`';
     }
     assert( thing.schema === (Thing.schema||{})[thing.type] );
-}
+} 
 
-function equals_missing(value) {
+function is_missing(value) { 
     assert(!NaN === true);
     assert(!null === true);
     assert(!undefined === true);
     // Note that;
     assert((NaN===NaN) === false);
     return ! value && value !== 0 && value !== false;
-}
+} 
+
+function assertize(fct) { 
+    return (thing, {Thing}) => {
+        const ValidationError = Thing.ValidationError;
+        assert(ValidationError);
+        try {
+            fct(thing, {Thing});
+        }
+        catch(err) {
+            assert(new ValidationError('foo').constructor === ValidationError);
+            if( err.constructor === ValidationError ) {
+                throw new AssertionError({message: err.message});
+            }
+            throw err;
+        }
+    }
+} 

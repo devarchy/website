@@ -1,8 +1,5 @@
 .user-text.comment {
     & .reply-list__header {
         font-size: 90%;
-        & i.fa-minus-circle {
-            font-size: 85%;
-        }
     }
 }

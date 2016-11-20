@@ -1,5 +1,2 @@
-require('./core');
-require('./upsert');
-require('./validation');
-require('./concurrency');
-require('./devarchy_schema');
+require('./features');
+require('./devarchy');

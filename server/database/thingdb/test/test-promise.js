@@ -2,19 +2,20 @@
 require('mocha');
 const assert = require('better-assert');
 const chai_assert = require('chai').assert;
-const Promise = require('bluebird');
-Promise.longStackTraces();
-const Thing = require('../index.js')
-const connection = require('../database/connection');
+const Promise = require('bluebird'); Promise.longStackTraces();
+const turn_into_error_object = require('../../../util/turn_into_error_object');
 
 
-module.exports = () => {
+module.exports = Thing => {
+    assert(Thing);
+    assert(Thing.database);
+
     let promise = Promise.resolve();
 
     return  {
-        it: (what, test, opts) => {
+        it: (what, test, {timeout}={}) => {
             it(what, function(done) {
-                this.timeout((opts||{}).timeout || 30*1000);
+                this.timeout(timeout || 30*1000);
 
                 promise = promise
                 .then(() =>
@@ -26,36 +27,35 @@ module.exports = () => {
                 })
                 .catch(err => {
                     // Thing.debug.log.buffer.flush();
+                    assert(turn_into_error_object.is_error_object(err));
                     done(err);
                 });
             });
         },
-        it_validates_if: (what, test, opts) => {
-            const reason = (opts||{}).reason;
-            const before = (opts||{}).before;
+        it_validates_if: (what, test, {reason, before, timeout}={}) => {
             assert(reason);
 
-            const knex = connection();
             const count = build_count();
 
             it('throws `'+Thing.ValidationError.name+'` when '+what, function(done) {
-                this.timeout((opts||{}).timeout || module.exports.timeout);
+                this.timeout(timeout || module.exports.timeout);
 
+                let things_counter;
                 let checkpoints_passed = 0;
 
                 promise = promise
                 .then(() =>
-                    before&&before()
+                    before && before()
                 )
-                .then(() =>
+                .finally(() =>
                     // we don't need that now that we count the number of rows
                     count_things()
                     .then(count => (things_counter = count))
                 )
-                .then(() =>
+                .finally(() =>
                     count.fetch((c, table) => count[table] = c)
                 )
-                .then(() => {
+                .finally(() => {
                     checkpoints_passed++;
                     return test();
                 })
@@ -106,7 +106,6 @@ module.exports = () => {
                 });
             });
 
-            let things_counter;
             function count_things(){
                 return (
                     Thing.database.load.all_things()
@@ -122,7 +121,7 @@ module.exports = () => {
                                 'thing_event',
                             ]
                             .map(table =>
-                                knex(table)
+                                Thing.db_handle(table)
                                 .count("*")
                                 .then(r => {
                                     const c = parseInt(r[0].count, 10);

@@ -6,6 +6,8 @@ import AuthPage from '../pages/auth';
 import UserSnippet from '../snippets/user';
 import LinkMixin from '../mixins/link';
 
+import GoMarkGithub from 'react-icons/lib/go/mark-github';
+
 
 const LoginButton = () =>
     <LinkMixin.component
@@ -17,9 +19,8 @@ const LoginButton = () =>
               style={{fontSize: '0.95rem', wordSpacing: '1px'}}
               className="css_color_contrib_dark"
             >
-                <i
-                className="fa fa-github"
-                style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -1, paddingRight: 3}}
+                <GoMarkGithub
+                  style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -1, paddingRight: 3}}
                 />
                 {' '}
                 Login with

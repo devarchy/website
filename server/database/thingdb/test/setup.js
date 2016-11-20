@@ -1,32 +1,31 @@
-const assert = require('assert');
-const Thing = require('../index.js');
-const schema = require('../../schema.js');
-const connection = require('../../connection.js');
 require('../../../../.env');
 require('mocha');
-const promise = require('./test-promise')();
-const timerlog = require('timerlog');
+const assert = require('assert');
+require('timerlog')({disable_all: true});
 
+module.exports = setup;
 
-timerlog({disable_all: true});
+const already_run = new WeakMap();
 
-connection.database = 'automated-tests';
-Thing.database.connection = connection;
+function setup(Thing, n) {
+    assert(Thing);
 
-assert(schema.resource.npm_package_name.required);
-schema.resource.npm_package_name.required = false;
-Thing.schema = schema;
+    if( already_run.has(Thing) ) {
+        return;
+    }
+    already_run.set(Thing);
 
-Thing.http_max_delay = 1;
+    const promise = require('./test-promise')(Thing);
 
-describe('ThingDB management', () => {
+    describe('ThingDB management', () => {
 
-    promise.it('can delete and re-create database schema', () =>
-        (
-            Thing.database.management.delete_all()
+        promise.it('can delete and re-create database schema', () =>
+            (
+                Thing.database.management.delete_all()
+            )
+            .then(() =>
+                Thing.database.management.create_schema()
+            )
         )
-        .then(() =>
-            Thing.database.management.create_schema()
-        )
-    )
-});
+    });
+}

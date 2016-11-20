@@ -1,5 +1,4 @@
 "use strict";
-const connection = require('../connection');
 const assert = require('better-assert');
 const node_assert = require('assert');
 const table_columns = require('../table').columns;
@@ -13,20 +12,19 @@ const util = module.exports = {
     }
 };
 
-function retrieve_by_filter(table_name, thing_props, {result_fields, transaction, orderBy, return_raw_request}={}) {
+function retrieve_by_filter(table_name, thing_props, {Thing, result_fields, transaction, orderBy, return_raw_request}={}) {
     node_assert( 2 <= arguments.length && arguments.length<= 3, arguments );
     assert( arguments[2] === undefined || arguments[2].constructor===Object );
+    assert( Thing );
+    assert( Thing.database );
+    assert( Thing.db_handle );
     assert( table_name );
     assert( thing_props && Object.keys(thing_props).length>=0 && thing_props.constructor===Object );
     assert( transaction === undefined || transaction.rid );
     assert( [undefined, null].includes(result_fields) || result_fields.constructor===Array && (result_fields.includes('id') || result_fields.includes('type')) );
     assert( orderBy===undefined || orderBy.constructor === String );
 
-    const Thing = require('../../index.js');
-
-    const knex = connection();
-
-    var request = knex(table_name);
+    var request = Thing.db_handle(table_name);
 
     if( transaction ) {
         request = request.transacting(transaction);
@@ -40,7 +38,7 @@ function retrieve_by_filter(table_name, thing_props, {result_fields, transaction
             .map(prop => {
                 const prop_in_db = map_prop_to_database_select_expression(prop);
 
-                return knex.raw(prop_in_db);
+                return Thing.db_handle.raw(prop_in_db);
                 if( prop_in_db === prop ) {
                     return prop;
                 }
@@ -186,8 +184,6 @@ function map_prop_value_array_to_object(prop_values, result_fields) {
 }
 
 function map_props_to_database(props_from_thing) {
-    const Thing = require('../../index.js');
-
     const props_for_database = {
         json_data: {},
     };

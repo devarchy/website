@@ -27,7 +27,7 @@ export default {
         resource_list:
             resource_list.map(({resource, category}) => ({
                 key: resource.key,
-                props: ResourceLineSnippet.get_props({resource, addition_request_view: category, is_request: true}),
+                props: ResourceLineSnippet.get_props({resource, addition_request_view: true, category, is_request: true}),
             })),
     }),
 };

@@ -6,20 +6,20 @@ const schema = {
         validation: {
             type: 'Thing.user',
         },
-        required: true,
+        is_required: true,
     },
     id: {
         validation: {
             type: String,
         },
         test: v => validator.isUUID(v),
-        required: true,
+        is_required: true,
     },
     type: {
         validation: {
             type: String,
         },
-        required: true,
+        is_required: true,
     },
     removed: {
         validation: {

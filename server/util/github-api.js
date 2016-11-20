@@ -1,16 +1,9 @@
 "use strict";
-const http = require('request-promise');
 const assert = require('assert');
-// don't use isomorphic fetch until abort or timeout has been implemented
-// - https://github.com/github/fetch/issues/131
-// - https://github.com/github/fetch/issues/246
-const Promise = require('bluebird');
-Promise.longStackTraces();
 const atob = require('atob');
 const env = require('./env');
-const long_term_cache = require('./long_term_cache');
-const NetworkConnectionError = require('./network_connection_error');
-const http_node = require('http');
+const fetch = require('./fetch');
+const fetch_with_cache = require('./fetch_with_cache');
 
 
 module.exports = {
@@ -18,6 +11,7 @@ module.exports = {
         get_info: get_repository_info,
         get_package_json,
         get_readme,
+        get_file,
     },
     user: {
         get_info: get_user_info,
@@ -26,58 +20,27 @@ module.exports = {
     url: 'https://github.com/',
 };
 
-const http_pool = new http_node.Agent({maxSockets: 10, keepAlive: true});
 
-const credentials = {
-    client_id: env.GITHUB_CLIENT_ID,
-    client_secret: env.GITHUB_CLIENT_SECRET,
-};
+function get_user_info({login}) { 
+    return (
+        request({path: 'users/'+login}, arguments[0])
+    );
+} 
 
-const http_cached = long_term_cache({ 
-    function_to_cache: http,
-    hash_input: req => { return req.method + ' ' + req.uri + (req.accept_header ? (' ' + req.accept_header) : '') },
-    entry_expiration: 1000*60*60*24*10,
-    cache_name: 'http',
-    parse_output: (response, output_is_error) => {
-
-        // `require-promise` sometimes doesn't seem to return properly
-        assert(Object.keys(response||{}).length>0, '`response==='+response+'`');
-
-        return parse(response, output_is_error);
-
-        function parse({body, error, headers, statusCode, response, request}, output_is_error) {
-
-            // `require-promise` sometimes doesn't seem to return properly
-            assert(!output_is_error || Object.keys(response||{}).length>0 || Object.keys(error||{}).length>0, '`output_is_error==='+output_is_error+'`, `response==='+response+'`, `statusCode==='+statusCode+'`, `error==='+JSON.stringify(error, null, 2)+'`');
-
-            response = output_is_error && response ? parse(response) : null;
-
-            return {body, error, headers, statusCode, response, request};
-        }
-
-    },
-    ignore_cache_entry: ({statusCode,error}={}) => (
-        statusCode===403 || // 403 -> API rate limit exceeded
-        !statusCode || !error ||
-        NetworkConnectionError.check_error_object(error)
-    ),
-}); 
-
-function get_user_info({login, max_delay}) {
-    return request({path: 'users/'+login, max_delay});
-}
-
-function get_user_emails({auth_token, max_delay}) {
+function get_user_emails({auth_token}) { 
     assert(auth_token);
-    return request({path: 'user/emails?access_token='+auth_token, max_delay});
-}
+    return request({path: 'user/emails?access_token='+auth_token}, arguments[0]);
+} 
 
-function get_repository_info({full_name, max_delay, expected_status_codes}) {
-    return request({path: 'repos/'+full_name, max_delay, expected_status_codes});
-}
+function get_repository_info({full_name}) { 
+    return (
+        request({path: 'repos/'+full_name}, arguments[0])
+    );
+} 
 
-function get_package_json({full_name, max_delay}) { 
-    return get_file({full_name, file_path: 'package.json', max_delay}).then(content => {
+function get_package_json(args) { 
+    args.file_path = 'package.json';
+    return get_file(args).then(content => {
         try {
             return JSON.parse(content);
         }catch(e) {
@@ -87,143 +50,99 @@ function get_package_json({full_name, max_delay}) {
     });
 } 
 
-function get_readme({full_name, max_delay, markdown_parsed=true}) { 
+function get_readme({full_name, markdown_parsed=true}) { 
     const path = 'repos/' + full_name + '/readme';
-    const req_obj = {path, max_delay, expected_status_codes: [404]};
+    const req_obj = {path};
     if( markdown_parsed ) {
         req_obj.accept_header = 'application/vnd.github.html';
     }
-    return request(req_obj)
+    return request(
+        req_obj,
+        Object.assign(arguments[0], {expected_error_status_codes: [404]})
+    )
     .then(result => {
         if( ! markdown_parsed ) {
-            return process_file_result(result);
+            return process_file_response(result);
         }
         if( result === null ) return null;
         return result;
     });
 } 
 
-function get_file({full_name, file_path, dir='contents/', max_delay, accept_header}) { 
+function get_file({full_name, file_path, dir='contents/'}) { 
     const path =
         'repos/' +
         full_name +
         '/' +
         dir +
         file_path;
-    return request({path, max_delay, expected_status_codes: [404], accept_header})
-    .then(process_file_result)
+    return request({path}, Object.assign(arguments[0], {expected_error_status_codes: [404]}))
+    .then(process_file_response)
 } 
 
-function process_file_result(result) { 
+function process_file_response(result) { 
     if( result === null ) return null;
     return atob(result.content);
 } 
 
-function request({path, max_delay, expected_status_codes, accept_header}) { 
+function request({path, accept_header}, {max_delay, expected_error_status_codes, dont_use_cache}) { 
+
+    const CREDENTIALS = {
+        client_id: env.GITHUB_CLIENT_ID,
+        client_secret: env.GITHUB_CLIENT_SECRET,
+    };
+
+    const headers = {
+        'User-Agent': 'devarchy',
+    };
+
+    if( accept_header ) {
+        headers['Accept'] = accept_header;
+    }
+
+    const fetch_params = {
+        url: 'https://api.github.com/'+path,
+        query_string: CREDENTIALS,
+        json: true,
+        timeout: max_delay,
+        expected_error_status_codes,
+        headers,
+    };
 
     return (
-        wrap_promise(
-            call_http({accept_header})
-        )
+        dont_use_cache ? fetch(fetch_params) : fetch_with_cache(fetch_params)
     )
     .then(resp => {
-        if( ! resp._comes_from_cache ) {
-            const rate_remaining = resp.headers['x-ratelimit-remaining'];
-            if( ! (rate_remaining > 2000) && (rate_remaining % 500 === 50) ) {
-                console.warn('\nLow '+get_api_rate_stats(resp)+'\n');
-            }
-        }
-        return resp.body;
-    })
-    .catch(err => {
-        if( ! NetworkConnectionError.check_error_object(err) && !(err.statusCode || err.error || err.response) ) {
-            console.error('unexpected error;');
-            console.error(err);
-            throw err;
-        }
-        if( (expected_status_codes||[]).includes(err.statusCode) ) {
+        assert(resp, resp);
+        assert(resp.request_url, resp);
+        assert(resp.response_status_code, resp);
+        if( (expected_error_status_codes||[]).includes(resp.response_status_code) ) {
             return null;
         }
-        if( ! NetworkConnectionError.check_error_object(err) ) {
-            console.error('\n');
-            console.error(err.statusCode + ' ' + (err.error||{}).message);
-            console.error(err.response.request.uri.pathname);
-            console.error(get_api_rate_stats(err.response));
-            console.error('\n');
+        assert(resp.response_headers, JSON.stringify(resp, null, 2));
+        if( ! resp._comes_from_cache ) {
+            const rate_remaining = resp.response_headers['x-ratelimit-remaining'];
+            if( ! (rate_remaining > 2000) && (rate_remaining % 500 === 50) ) {
+                console.warn('\nLow '+get_api_rate_stats(resp.response_headers)+'\n');
+            }
         }
-        throw err;
+        return resp.response_body;
+    })
+    .catch(resp => {
+        assert(resp, resp);
+        assert(resp.request_url, resp);
+        assert(resp.stack, resp);
+        if( resp.response_headers ) {
+            console.error(get_api_rate_stats(resp));
+        }
+        throw resp;
     });
 
-    function get_api_rate_stats(resp){
-        const rate_limit = resp.headers['x-ratelimit-limit'];
-        const rate_remaining = resp.headers['x-ratelimit-remaining'];
-        const rate_reset = Math.ceil((resp.headers['x-ratelimit-reset']*1000 - new Date()) / (1000*60));
+    function get_api_rate_stats(headers) {
+        const rate_limit = headers['x-ratelimit-limit'];
+        const rate_remaining = headers['x-ratelimit-remaining'];
+        const rate_reset = Math.ceil((headers['x-ratelimit-reset']*1000 - new Date()) / (1000*60));
         return 'API rate: '+rate_remaining+'/'+rate_limit+' (Reset: '+rate_reset+'mn)';
     }
 
-    function call_http({accept_header}={}) {
-
-        const params = {
-            method: 'GET',
-            qs: credentials,
-            uri: 'https://api.github.com/'+path,
-            withCredentials: false,
-            json: true,
-            headers: {
-                'User-Agent': 'devarchy',
-            },
-            resolveWithFullResponse: true,
-            pool: http_pool,
-        };
-
-        if( accept_header ) {
-            params.headers['Accept'] = accept_header;
-        }
-
-        return http_cached(params);
-
-    }
-
-    function wrap_promise(request_promise) {
-
-        assert((request_promise.abort||1).constructor === Function);
-
-        return new Promise((resolve, reject) => {
-            let is_finished = false;
-
-            request_promise
-            .then(resp => {
-                if( is_finished ) return;
-                is_finished = true;
-                resolve(resp);
-            })
-            .catch(err => {
-                if( ! err.error ) {
-                    // this is unexpected and needs dev attention
-                    console.error('unexpected error;');
-                    console.error(err);
-                    throw err;
-                }
-                if( is_finished ) return;
-                is_finished = true;
-                const connection_problem = NetworkConnectionError.check_error_object(err.error);
-                if( connection_problem ) {
-                    reject(new NetworkConnectionError("Could not connect to GitHub's API: "+connection_problem));
-                }
-                reject(err);
-            });
-
-            if( max_delay ) {
-                setTimeout(() => {
-                    if( is_finished ) return;
-                    is_finished = true;
-                    request_promise.abort();
-                    // upon `abort()` promise won't be resolved nor rejected
-                    reject(new NetworkConnectionError("Could not connect to GitHub's API; timeout of "+max_delay+"ms reached"));
-                }, max_delay);
-            }
-
-        });
-
-    }
 } 

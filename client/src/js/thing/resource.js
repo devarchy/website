@@ -1,6 +1,7 @@
 import assert from 'assert';
 import validator from 'validator';
-import {is_npm_package_name_valid} from '../util/npm';
+import {is_npm_package_name_valid} from '../util/npm_package_name_validation';
+import normalize_url from '../util/normalize_url';
 import clean_sentence from 'clean-sentence'
 import mixin from './mixin/mixin.decorator.js';
 import CommentableMixin from './mixin/commentable';
@@ -11,22 +12,55 @@ import Promise from 'bluebird';
 Promise.longStackTraces();
 
 const map__github_full_name = {};
+const map__resource_url_normalized = {};
 
 @mixin(CommentableMixin)
 @mixin(VotableMixin)
 class Resource extends Thing {
     constructor(...args) {
         super(...args);
-        assert( this.github_full_name );
-        assert( !this.id || this.github_info );
-        assert( !this.id || this.github_info.created_at );
-        map__github_full_name[this.github_full_name.toLowerCase()] = this;
+
+        assert( this.github_full_name || this.resource_url_normalized || !this.id && this.resource_url);
+
+        if( this.github_full_name ) {
+            assert( !this.id || this.github_info );
+            assert( !this.id || this.github_info.created_at );
+            map__github_full_name[this.github_full_name.toLowerCase()] = this;
+        }
+
+        if( this.resource_url_normalized ) {
+            map__resource_url_normalized[this.resource_url_normalized] = this;
+        }
     }
 
-    get description() { 
-        let desc = (this.npm_info||{}).description || this.github_info.description;
+    get resource_name() {
+        const name = (
+            this.npm_package_name ||
+         // this.resource_title ||
+            this.html_info.html_title ||
+            this.resource_url_normalized
+        );
+        assert(name);
+        return name;
+    }
+
+    get name() { 
+        assert(false);
+    } 
+
+    get resource_desc() { 
+        let desc = (
+            (this.npm_info||{}).description ||
+            (this.github_info||{}).description ||
+         // this.resource_description ||
+            this.html_info.html_description
+        );
         desc = clean_sentence(desc||'', {remove_emojis: true, remove_urls: true});
         return desc;
+    } 
+
+    get description() { 
+        assert(false);
     } 
 
     add_tag (tag) { 
@@ -59,14 +93,9 @@ class Resource extends Thing {
                 assert(tag__markdown_list, 'could not find a Thing.tag instance for `'+tagname+'`');
                 assert(tag__markdown_list.is_markdown_list);
                 const tag__category_id = Tag.category__get_global_id(category, tag__markdown_list.id);
-                const tag__category = Tag.get_by_name(tag__category_id);
-                assert(tag__category);
-                return tag__category;
-            })
-            .filter(tag => {
-                assert(tag);
-                assert(tag.is_markdown_category);
-                return !tag.tagged_resources.find(({github_full_name}) => this.github_full_name === github_full_name);
+                const tag__category = Tag.get_by_name(tag__category_id) || null;
+                assert(tag__category===null || tag__category.is_markdown_category);
+                return {tag__category, tag__markdown_list};
             })
         );
     } 
@@ -79,9 +108,16 @@ class Resource extends Thing {
         const category_id = categories[0].category;
         const category_id_global = Tag.category__get_global_id(category_id, tag.id);
         assert(category_id);
-        const category = Tag.get_by_name(category_id_global);
-        assert(category, category_id_global+' not found');
+        const category = Tag.get_by_name(category_id_global) || null;
+        assert(category===null || category.is_markdown_category);
         return category;
+    } 
+
+    is_declined_in(tag) { 
+        assert(tag.is_markdown_list);
+        assert(tag.markdown_list__declined);
+        assert(tag.markdown_list__declined.constructor===Array);
+        return tag.markdown_list__declined.includes(this.npm_package_name);
     } 
 
     is_tagged_with(tag, options) { 
@@ -97,7 +133,7 @@ class Resource extends Thing {
         return false;
 
         function is_tagged_through_request({awaiting_approval}={}) {
-            if( ! tag.is_markdown_category ) {
+            if( ! tag.is_markdown_category && !tag.is_markdown_list ) {
                 return null;
             }
             if( ! awaiting_approval ) {
@@ -114,7 +150,7 @@ class Resource extends Thing {
             if( awaiting_approval === 'EXCLUDE' && is_awaiting_approval ) {
                 return false;
             }
-            assert(false);
+            return null;
         }
 
         function is_tagged_through_tagged_thing() {
@@ -130,8 +166,12 @@ class Resource extends Thing {
             }
 
             const is_in =
-                tag.tagged_resources.some(({github_full_name, npm_package_name}) =>
-                    matches_key(this, {github_full_name, npm_package_name})
+                tag.tagged_resources.some(r =>
+                    matches_key(this, {
+                        github_full_name: (r.as_npm_catalog||{}).github_full_name,
+                        npm_package_name: (r.as_npm_catalog||{}).npm_package_name,
+                        resource_url_normalized: normalize_url((r.as_web_catalog||{}).resource_url),
+                    })
                 );
             if( is_in ) {
                 return true;
@@ -139,41 +179,48 @@ class Resource extends Thing {
                 return null;
             }
 
-            function matches_key(resource, {github_full_name, npm_package_name}) {
-                assert(github_full_name);
-                assert(npm_package_name);
-                assert(resource.github_full_name);
-                assert(resource.npm_package_name);
-                const github_full_name__match = resource.github_full_name.toLowerCase() === github_full_name.toLowerCase();
-                const npm_package_name__match = resource.npm_package_name.toLowerCase() === npm_package_name.toLowerCase();
-                const partial_match = github_full_name__match || npm_package_name__match;
-                const complete_match = github_full_name__match && npm_package_name__match;
-                return complete_match;
-                /*
-                assert(
-                    ! partial_match || complete_match,
-                    [
-                        resource.github_full_name.toLowerCase(),
-                        '!==',
-                        github_full_name.toLowerCase(),
-                        '||',
-                        resource.npm_package_name.toLowerCase(),
-                        '!==',
-                        npm_package_name.toLowerCase(),
-                    ].join(' ')
-                );
-                return partial_match;
-                */
+            function matches_key(resource, {github_full_name, npm_package_name, resource_url_normalized}) {
+                assert(github_full_name && npm_package_name || resource_url_normalized);
+                if( github_full_name && npm_package_name ) {
+                    assert(resource.github_full_name);
+                    assert(resource.npm_package_name);
+                    const github_full_name__match = resource.github_full_name.toLowerCase() === github_full_name.toLowerCase();
+                    const npm_package_name__match = resource.npm_package_name.toLowerCase() === npm_package_name.toLowerCase();
+                    const partial_match = github_full_name__match || npm_package_name__match;
+                    const complete_match = github_full_name__match && npm_package_name__match;
+                    return complete_match;
+                    /*
+                    assert(
+                        ! partial_match || complete_match,
+                        [
+                            resource.github_full_name.toLowerCase(),
+                            '!==',
+                            github_full_name.toLowerCase(),
+                            '||',
+                            resource.npm_package_name.toLowerCase(),
+                            '!==',
+                            npm_package_name.toLowerCase(),
+                        ].join(' ')
+                    );
+                    return partial_match;
+                    */
+                }
+
+                if( resource_url_normalized ) {
+                    return resource.resource_url_normalized === resource_url_normalized;
+                }
+
+                assert(false);
             }
         }
 
     } 
 
-    is_awaiting_approval_for(tag__markdown_category) { 
-        assert(tag__markdown_category);
-        assert(tag__markdown_category.constructor === Tag);
-        assert(tag__markdown_category.is_markdown_category);
-        return this.preview.tagreqs.includes(tag__markdown_category.name);
+    is_awaiting_approval_for(tag) { 
+        assert(tag);
+        assert(tag.constructor === Tag);
+        assert(tag.is_markdown_category || tag.is_markdown_list);
+        return this.preview.tagreqs.find(tr => tag.is_markdown_list ? tr.tagname === tag.name : tr.category === tag.category_id);
     } 
 
     get logged_user_is_owner() { 
@@ -186,12 +233,14 @@ class Resource extends Thing {
         return Thing.things.logged_user.github_login.toLowerCase() === repo_owner.toLowerCase();
     } 
 
-    static retrieve_view (github_full_name) { 
-        assert(github_full_name);
-        return Thing.load.view([{
+    static retrieve_view ({github_full_name, resource_url_normalized}) { 
+        assert(github_full_name || resource_url_normalized);
+        const info = {
             type: 'resource',
             github_full_name,
-        }]);
+            resource_url_normalized,
+        };
+        return Thing.load.view([info]);
     } 
 
     static get_by_github_full_name (github_full_name) { 
@@ -199,12 +248,22 @@ class Resource extends Thing {
         return map__github_full_name[github_full_name.toLowerCase()];
     } 
 
+    static get_by_resource_url_normalized (resource_url_normalized) { 
+        assert(resource_url_normalized);
+        return map__resource_url_normalized[resource_url_normalized];
+    } 
+
+    static get_by_resource_url (resource_url) { 
+        assert(resource_url);
+        return this.get_by_resource_url_normalized(normalize_url(resource_url));
+    } 
+
     static retrieve_by_github_full_name (github_full_name) { 
         assert(github_full_name);
         return super.retrieve_by_props({github_full_name});
     } 
 
-    static list_things ({age_min = 0, age_max = Infinity, tags = [], order, list, awaiting_approval}={}) { 
+    static list_things ({age_min = 0, age_max = Infinity, tags = [], order, list, awaiting_approval, include_declined = false}={}) { 
 
         return super.list_things({
             order,
@@ -225,7 +284,12 @@ class Resource extends Thing {
                     assert(tags.every(tag => tag && tag.constructor === Tag));
 
                     resources = resources.filter(thing__resource =>
-                        tags.every(tag => thing__resource.is_tagged_with(tag, {awaiting_approval}))
+                        tags.every(tag => {
+                            return (
+                                include_declined || !thing__resource.is_declined_in(tag) &&
+                                thing__resource.is_tagged_with(tag, {awaiting_approval})
+                            );
+                        })
                     );
                 }
 
@@ -274,7 +338,7 @@ class Resource extends Thing {
         // return ['github_info.stargazers_count', 'github_info.created_at', ];
     } 
 
-    static add_to_markdown_list({github_full_name, npm_package_name, tag__markdown_list, tag__category}) { 
+    static add_to_markdown_list({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description, tag__markdown_list, tag__category}) { 
         if( ! tag__category ) {
             return Promise.reject(new Error('Choose a category to add the resource to'));
         }
@@ -283,15 +347,14 @@ class Resource extends Thing {
         assert( tag__category.id && tag__category.id === tag__category.name );
 
         return (
-            add_to_platform({github_full_name, npm_package_name})
+            add_to_platform({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description})
         )
-        .then(infos => {
-            assert( infos );
-            assert( infos.resource && infos.resource.constructor === Resource );
+        .then(resource => {
+            assert( resource && resource.constructor === Resource );
             return Promise.all([
                 new Thing({
                     type: 'tagged',
-                    referred_resource: infos.resource.id,
+                    referred_resource: resource.id,
                     referred_tag: tag__markdown_list.id,
                     tagrequest: tag__category.category_id,
                     removed: false,
@@ -302,7 +365,7 @@ class Resource extends Thing {
                 new Thing({
                     type: 'genericvote',
                     vote_type: 'upvote',
-                    referred_thing: infos.resource.id,
+                    referred_thing: resource.id,
                     author: Thing.things.logged_user.id,
                     draft: {},
                 }).draft.save(),
@@ -313,17 +376,22 @@ class Resource extends Thing {
 
     static get result_fields() { 
         return super.result_fields.concat([
-            'created_at',
             'github_full_name',
-            'npm_package_name',
-            'npm_info.description',
-            'preview',
             'github_info.full_name',
             'github_info.description',
             'github_info.created_at',
             'github_info.pushed_at',
             'github_info.homepage',
             'github_info.stargazers_count',
+            'npm_package_name',
+            'npm_info.description',
+            'html_info.html_title',
+            'html_info.html_description',
+            'resource_url_normalized',
+            'resource_title',
+            'resource_description',
+            'created_at',
+            'preview',
         ]);
     } 
 };
@@ -347,60 +415,78 @@ function set_tagged_removed_prop(resource, tag, value) {
     }).draft.save();
 } 
 
-function add_to_platform({github_full_name, npm_package_name, tags=null}) { 
+function add_to_platform({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description, tags=null}) { 
     assert( tags===null || tags.every(tag => tag.constructor === Tag) );
     assert( Thing.things.logged_user.id );
 
     const validation_errors = (() => { 
         let validation_errors = null;
-        if( ! github_full_name ) {
-            validation_errors = validation_errors || {};
-            validation_errors.github_full_name = validation_errors.github_full_name || {};
-            validation_errors.github_full_name.is_missing = true;
+        if( is_npm_entry ) {
+            if( ! github_full_name ) {
+                validation_errors = validation_errors || {};
+                validation_errors.github_full_name = validation_errors.github_full_name || {};
+                validation_errors.github_full_name.is_missing = true;
+            }
+            else if( github_full_name.split('/').length !== 2 ) {
+                validation_errors = validation_errors || {};
+                validation_errors.github_full_name = validation_errors.github_full_name || {};
+                validation_errors.github_full_name.is_malformatted = true;
+            }
+            if( ! npm_package_name ) {
+                validation_errors = validation_errors || {};
+                validation_errors.npm_package_name = validation_errors.npm_package_name || {};
+                validation_errors.npm_package_name.is_missing = true;
+            }
+            else if( ! is_npm_package_name_valid(npm_package_name) ) {
+                validation_errors = validation_errors || {};
+                validation_errors.npm_package_name = validation_errors.npm_package_name || {};
+                validation_errors.npm_package_name.is_malformatted = true;
+            }
         }
-        else if( github_full_name.split('/').length !== 2 ) {
-            validation_errors = validation_errors || {};
-            validation_errors.github_full_name = validation_errors.github_full_name || {};
-            validation_errors.github_full_name.is_malformatted = true;
+        else {
+            if( ! resource_url ) {
+                validation_errors = validation_errors || {};
+                validation_errors.resource_url = validation_errors.resource_url || {};
+                validation_errors.resource_url.is_missing = true;
+            }
         }
-        if( ! npm_package_name ) {
-            validation_errors = validation_errors || {};
-            validation_errors.npm_package_name = validation_errors.npm_package_name || {};
-            validation_errors.npm_package_name.is_missing = true;
-        }
-        else if( ! is_npm_package_name_valid(npm_package_name) ) {
-            validation_errors = validation_errors || {};
-            validation_errors.npm_package_name = validation_errors.npm_package_name || {};
-            validation_errors.npm_package_name.is_malformatted = true;
-        }
+
         return validation_errors;
     })(); 
+
     if( validation_errors ) {
         const err = new Error('Validation Error(s)');
         err.validation_errors = validation_errors;
         return Promise.reject(err);
     }
 
-    const resolved_value = {
-        resource: null,
-        already_added: false,
+    const thing_info = {
+        type: 'resource',
+        draft: {
+            author: Thing.things.logged_user.id,
+        },
     };
 
-    return (
-        new Thing({
-            type: 'resource',
+    if( is_npm_entry ) {
+        Object.assign(thing_info, {
             github_full_name,
             npm_package_name,
-            draft: {
-                author: Thing.things.logged_user.id,
-            },
-        }).draft.save()
+        });
+    }
+    else {
+        Object.assign(thing_info, {
+            resource_url,
+            resource_title,
+            resource_description,
+        });
+    }
+
+    return (
+        new Thing(thing_info).draft.save()
     )
     .then(([resource]) => {
         assert(resource);
         assert(resource.constructor === Resource);
-        resolved_value.already_added = resource.history.length > 1;
-        resolved_value.resource = resource;
+        return resource;
     })
-    .then(() => resolved_value);
 } 

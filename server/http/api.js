@@ -1,5 +1,5 @@
 const assert = require('assert');
-const Thing = require('../database/thingdb');
+const Thing = require('../database');
 const Boom = require('boom');
 
 
@@ -191,12 +191,13 @@ module.exports = function(server){
                     new Thing(thing_data).draft.save()
                     .then(response => next(null, response))
                     .catch(err => {
+                        assert(err.stack);
                         if( err.constructor === Thing.ValidationError ) {
                             next({"message": err.message});
                             return;
                         }
-                        if( Thing.NetworkConnectionError.check_error_object(err) ) {
-                            next({"message": err.message});
+                        if( (err||{}).response_connection_error ) {
+                            next({"message": err.response_connection_error});
                             return;
                         }
                         console.error(err);

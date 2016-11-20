@@ -1,21 +1,31 @@
+@font-face {
+    font-family: 'Muli';
+    font-style: normal;
+    font-weight: 400;
+    src: url(../font/muli_300.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
+}
+@font-face {
+    font-family: 'Open Sans';
+    font-style: normal;
+    font-weight: 400;
+    src: url(../font/open_sans_400.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
+}
+html.css_da > body {
+    font-family: 'Open Sans', Verdana, Geneva, sans-serif;
+}
+.css_catalog_title {
+    font-family: 'Muli';
+}
+
 html.css_da {
     color: #333;
     font-size: 0.82em;
 }
-html.css_da > body {
-    font-family: Verdana, Geneva, sans-serif;
-}
-
-h1, h2, h3, h4, h5 {
-    &.css_da {
+.css_da {
+    @nest .css_heading, h1&, h2&, h3&, h4&, h5& {
         font-weight: normal;
-    }
-}
-
-h1, h2 {
-    &.css_da {
-        font-weight: 300;
-        vertical-align: middle;
     }
 }
 h1.css_da {
@@ -24,12 +34,14 @@ h1.css_da {
 h2.css_da {
     font-size: 1.55em;
 }
-
 h6.css_da {
     opacity: 0.6;
     font-size: .75rem;
     font-weight: 500;
     margin: 0;
+}
+.css_catalog_title {
+    font-size: 2.4em;
 }
 
 html a.css_da {
@@ -49,6 +61,7 @@ code.css_da {
     }
     &.css_inline {
         padding: 0.1em 0.45em;
+        padding-top: 2px;
         font-size: 1.09em;
         background-color: rgba(0,0,0,0.06);
     }
@@ -80,4 +93,22 @@ code.css_da {
     top: -1px;
     color: #999;
     font-size: 10.6667px;
+}
+
+
+.octicon.css_da {
+    vertical-align: middle;
+}
+.octicon-code,
+.octicon-light-bulb {
+    &.css_da {
+        font-size: 1.1em;
+        position: relative;
+        top: -1px;
+    }
+}
+
+.css_up_1px {
+    position: relative;
+    top: -1px;
 }

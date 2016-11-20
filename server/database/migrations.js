@@ -4,8 +4,9 @@ const Thing = require('./');
 require('timerlog')({disable_all: true});
 
 
-migration__recompute_resources();
+migration__recompute_users_private_data();
 /*
+migration__recompute_resources();
 migration__category_ids();
 migration__recompute_tags();
 */
@@ -34,12 +35,12 @@ function migration__category_ids() {
             markdown_list__github_full_name: '_NOT_NULL',
         })
         .then(tags => {
-            assert(tags.every(t => t.markdown_list__data));
+            assert(tags.every(t => t.markdown_list__entries));
 
             assert(tags.length>=2);
 
             tags.forEach(tag => {
-                const categories = tag.markdown_list__data;
+                const categories = tag.markdown_list__entries;
                 assert(categories.constructor === Array);
 
                 categories.forEach(cat => {
@@ -156,6 +157,15 @@ function migration__preview_missing() {
              //     return true;
              // }
                 return false;
+        },
+        close_connections_when_done: true,
+    });
+}
+
+function migration__recompute_users_private_data() {
+    Thing.database.management.migrate.recompute_things({
+        filter_properties: {
+            type: 'user_private_data',
         },
         close_connections_when_done: true,
     });
