@@ -1,1 +1,1 @@
-Source code of [Devarchy](http://devarchy.com/).
+Source code of [devarchy](http://devarchy.com/).
