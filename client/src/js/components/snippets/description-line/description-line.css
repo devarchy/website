@@ -1,0 +1,6 @@
+.css_line_component {
+    @nest
+    & + & {
+        margin-left: 9px;
+    }
+}

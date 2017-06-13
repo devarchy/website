@@ -1,0 +1,150 @@
+@import '../../../../css/colors.vars.css';
+@import '../../../../css/icons.vars.css';
+
+.css_category_header {
+    @nest .css_depth_1 & {
+        font-size: 1.75em;
+    }
+    @nest .css_depth_2 & {
+        font-size: 1.45em;
+    }
+    @nest .css_depth_3 & {
+        margin: 2px 0;
+        font-size: 1.09em;
+    }
+    margin-top: 0;
+    margin-bottom: 0;
+    display: inline-block;
+    font-weight: normal;
+}
+
+.css_header_breadcrumb {
+    font-size: 0.8em;
+    margin-bottom: -1px;
+    opacity: 0.4;
+}
+
+.css_category .css_category {
+    padding-left: 15px;
+}
+
+.css_header_description,
+.css_small_header_description {
+    font-style: italic;
+    margin-top: 0;
+}
+.css_header_description {
+    padding-bottom: 5px;
+    opacity: 0.6;
+    white-space: pre-wrap;
+}
+.css_small_header_description {
+    margin-bottom: 3px;
+    opacity: 0.4;
+    font-size: 0.9em;
+}
+
+.css_category_end {
+    @nest .css_depth_1 & {
+        padding-bottom: 45px;
+    }
+    @nest .css_depth_2 & {
+        padding-bottom: 0;
+    }
+    @nest .css_depth_3 & {
+        padding-bottom: 0;
+    }
+}
+.css_category_resource_list_end {
+    padding-bottom: 40px;
+}
+
+.css_category_resource_list_header {
+    padding-top: 5px;
+
+    & em {
+        opacity: 0.6;
+    }
+}
+
+.sel_resource_adder {
+    margin-top: 3px;
+    margin-left: -1px;
+}
+
+.css_hidden_note {
+    cursor: pointer;
+    opacity: 0.4;
+    margin-left: 122px;
+    margin-top: 2px !important;
+    margin-left: 1px !important;
+
+    & em {
+        opacity: 0.4;
+    }
+}
+
+.sel_resource_adder,
+.css_hidden_note {
+    @nest
+    .css_category__web_entries & {
+        padding-left: 34px;
+    }
+    @nest
+    .css_category__npm_entries & {
+        padding-left: 101px;
+    }
+}
+
+.sel_category_resources {
+    position: relative;
+
+    @nest
+    .sel_is_computing & {
+        overflow: hidden;
+        @apply --css_loading_icon__middle;
+        &::before {
+            pointer-events: none;
+        }
+    }
+
+    &::after {
+        content: "";
+
+        pointer-events: none;
+
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+
+        background-color: var(--css_color_background);
+        /*
+        transition: opacity 0.5s;
+        */
+        opacity: 0;
+
+        @nest
+        .sel_is_computing & {
+            transition: opacity 0.3s;
+            opacity: 0.7;
+        }
+    }
+}
+
+.sel_category_elaboration {
+    color: #aaa;
+    border-left: 4px solid #eee;
+    padding-left: 5px;
+    padding-top: 0;
+    padding-bottom: 2px;
+
+    & p {
+        margin-top: 0;
+        margin-bottom: 5px;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}

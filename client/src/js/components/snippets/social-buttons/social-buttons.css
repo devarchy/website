@@ -1,0 +1,33 @@
+@import '../../../../css/colors.vars.css';
+
+
+.css_social__twitter,
+.css_social__github {
+    filter: grayscale(1) brightness(105%) contrast(100%);
+    opacity: 0;
+    line-height: 0;
+    transition: opacity 2s, filter 0.7s;
+    &:hover {
+        filter: grayscale(0) brightness(100%) contrast(100%);
+    }
+    &.css_reveal {
+        opacity: 1;
+    }
+}
+
+.css_social__loading_cover {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 1;
+    opacity: 1;
+    transition: opacity 1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--css_color_background);
+    &.css_conceil {
+        opacity: 0;
+        pointer-events: none;
+    }
+}

@@ -1,0 +1,64 @@
+@import './colors.vars.css';
+@import './layout.vars.css';
+
+.css_sidebar {
+    position: relative;
+    z-index: 2;
+    color: #3a3a3a;
+
+    & .css_tag_list_content {
+        margin: 0 0 2px 5px;
+    }
+
+    & .css_sidebar_content {
+        position: relative;
+        min-height: 100%;
+        padding-bottom: 8px;
+    }
+}
+
+/* we have to use a wrapper because of custom scrollbar animation trick */
+.css_sidebar_wrapper {
+    background-color: var(--css_color_sidebar_background);
+}
+
+.css_tag_list {
+    transition: left var(--css_layout_transition), visibility var(--css_layout_transition);
+    left: 0;
+    visibility: visible;
+    @nest
+    .css_hide_sidebar &,
+    .css_show_resource_view &
+    {
+        left: calc(-1 * var(--css_sidebar_width));
+        visibility: hidden;
+    }
+}
+
+/* custom scrollbar */
+@media screen and (-webkit-min-device-pixel-ratio:0) { /* trick to only apply in webkit */
+    .sel_resource_view__scroll_area,
+    .css_sidebar {
+        &::-webkit-scrollbar {
+            width: 3px;
+        }
+        &::-webkit-scrollbar-track {
+            background-color: var(--css_color_sidebar_border);
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.1);
+        }
+        /* transition on hover
+        &::-webkit-scrollbar-thumb {
+            background-color: inherit;
+        }
+        transition: background-color var(--css_layout_transition);
+        background-color: rgba(0,0,0,0);
+        -webkit-background-clip: text;
+        &:hover {
+            background-color: rgba(0,0,0,0.1);
+        }
+        */
+    }
+}

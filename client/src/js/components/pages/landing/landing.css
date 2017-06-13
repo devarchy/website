@@ -1,0 +1,16 @@
+.css_page_landing {
+    text-align: center;
+}
+.css_page_landing_content {
+    display: inline-block;
+    width: 600px;
+    margin-top: 100px;
+    text-align: left;
+}
+.css_page_landing_logo {
+    padding: 5px;
+    margin-left: -5px;
+    margin-top: 20px;
+    margin-bottom: -10px;
+    display: inline-block;
+}

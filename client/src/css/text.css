@@ -12,7 +12,21 @@
     src: url(../font/open_sans_400.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
 }
-html.css_da > body {
+@font-face {
+    font-family: 'Cutive Mono';
+    font-style: normal;
+    font-weight: 400;
+    src: url(../font/cutive_mono.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
+}
+/* tell cssnano that we need that font */
+.i_should_not_exist {
+    font-family: 'Cutive Mono';
+}
+
+html.css_da > body,
+textarea.css_da,
+input.css_da {
     font-family: 'Open Sans', Verdana, Geneva, sans-serif;
 }
 .css_catalog_title {
@@ -24,7 +38,7 @@ html.css_da {
     font-size: 0.82em;
 }
 .css_da {
-    @nest .css_heading, h1&, h2&, h3&, h4&, h5& {
+    @nest h1&, h2&, h3&, h4&, h5& {
         font-weight: normal;
     }
 }
@@ -36,7 +50,7 @@ h2.css_da {
 }
 h6.css_da {
     opacity: 0.6;
-    font-size: .75rem;
+    font-size: .85rem;
     font-weight: 500;
     margin: 0;
 }
@@ -44,41 +58,48 @@ h6.css_da {
     font-size: 2.4em;
 }
 
-html a.css_da {
+a.css_a_gray {
     &, &:hover, &:focus {
         color: #aaa;
         cursor: pointer;
+        text-decoration: none;
+    }
+}
+a.css_da {
+    &, &:hover, &:focus {
+        color: inherit;
+        text-decoration: none;
     }
 }
 
 code.css_da {
-    font-family: monospace;
     border-radius: 3px;
     &:not(.css_inline) {
         font-size: 12px;
         padding: 0.2em;
+        /*
         background-color: rgba(0,0,0,0.04);
+        */
     }
     &.css_inline {
         padding: 0.1em 0.45em;
         padding-top: 2px;
         font-size: 1.09em;
+        /*
         background-color: rgba(0,0,0,0.06);
+        */
     }
+    background-color: #f7f7f7;
 }
 
 .css_p {
+    display: block !important;
     margin: 1em 0;
 }
 
 .css_note {
     font-size: 0.9em;
     color: #575757;
-}
-
-.css_action_text {
-    text-decoration: underline;
-    cursor: pointer;
 }
 
 .css_light_paragraph {
@@ -95,20 +116,35 @@ code.css_da {
     font-size: 10.6667px;
 }
 
-
-.octicon.css_da {
-    vertical-align: middle;
-}
-.octicon-code,
-.octicon-light-bulb {
-    &.css_da {
-        font-size: 1.1em;
-        position: relative;
-        top: -1px;
-    }
-}
-
-.css_up_1px {
+.css_1px_up {
     position: relative;
     top: -1px;
+}
+.css_1px_down {
+    position: relative;
+    top: 1px;
+}
+.css_1px_left {
+    position: relative;
+    left: -1px;
+}
+.css_1px_right {
+    position: relative;
+    left: 1px;
+}
+.css_2px_up {
+    position: relative;
+    top: -2px;
+}
+.css_2px_down {
+    position: relative;
+    top: 2px;
+}
+.css_2px_left {
+    position: relative;
+    left: -2px;
+}
+.css_2px_right {
+    position: relative;
+    left: 2px;
 }

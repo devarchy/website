@@ -1,7 +1,10 @@
-import assert from 'assert';
 import React from 'react';
+
+import assert from 'assertion-soft';
+
 import CommentSnippet from './comment';
-import FlipMove from 'react-flip-move';
+import FlipListMixin from '../../mixins/flip-list';
+import {IconButton} from '../../snippets/button';
 // import GoComment from 'react-icons/lib/go/comment';
 
 import rerender from '../../../rerender';
@@ -9,48 +12,41 @@ import rerender from '../../../rerender';
 import Thing from '../../../thing';
 
 
-var CommentListSnippet = React.createClass({
-    render: function() {
-        const thing = this.props.thing;
-        assert(thing.commentable);
-        const comments = thing.commentable.comments;
+const CommentAdder = ({thing, style}) => {
+    const comments = thing.commentable.comments;
+    const disabled = comments.some(c => c.is_editing);
+    return (
+        <IconButton
+          disabled={disabled}
+          onClick={ () => {
+              thing.commentable.add_comment();
+              rerender.carry_out();
+          }}
+          style={style}
+          icon={
+              <i className="octicon octicon-comment css_1px_down" style={{verticalAlign: 'middle'}}/>
+           // <GoComment className="css_1px_down" style={{verticalAlign: 'middle', color: '#bbb'}}/>
+          }
+          text={'Comment'}
+        />
+    );
+};
 
-        const user_is_logged = !!Thing.things.logged_user;
-
-        const add_comment_button = ! this.props.recursive_call &&
-            <button
-              className="css_da css_secondary_button"
-              disabled={!user_is_logged || this.props.disable_new_comment}
-              onClick={ () => {
-                  thing.commentable.add_comment();
-               // this.forceUpdate();
-                  rerender.carry_out();
-              }}
-            >
-                <i className="octicon octicon-comment" style={{verticalAlign: 'middle', color: '#bbb'}}/>
-                {/*
-                <GoComment style={{verticalAlign: 'middle', color: '#bbb'}}/>
-                */}
-                <span className="css_color_contrib_light">
-                    {' Add Review'}
-                </span>
-            </button>;
-
-        return (
-            <div>
-                <FlipMove enterAnimation="none" leaveAnimation="none" className="comment-list">{
-                    comments.map(comment =>
+const CommentList = ({thing, className, style}) => {
+    const comments = thing.commentable.comments;
+    return (
+        <div className={className} style={style}>
+            <FlipListMixin>
+                {
+                    comments.reverse().map(comment =>
                         <CommentSnippet.component
                           key={comment.key}
-                          thing={comment}
+                          comment={comment}
                         />)
-                }</FlipMove>
-                { add_comment_button }
-            </div>
-        );
-    },
-}); 
-
-export default {
-    component: CommentListSnippet,
+                }
+            </FlipListMixin>
+        </div>
+    );
 };
+
+export {CommentList, CommentAdder, CommentList as default};

@@ -2,7 +2,6 @@
 const assert = require('better-assert');
 const validator = require('validator');
 const validate_schema = require('./schema.js');
-const schema_common = require('../schema_common.js');
 const AssertionError = require('assert').AssertionError;
 
 
@@ -18,54 +17,56 @@ module.exports = {
 };
 
 
-function correctness(thing, {Thing}) {
-    validate(thing, false, false, {Thing});
+function correctness(thing, args) {
+    validate(thing, false, false, args);
 }
 
-function correctness_and_completness_without_draft(thing, {Thing}) {
-    validate(thing, true, false, {Thing});
+function correctness_and_completness_without_draft(thing, args) {
+    validate(thing, true, false, args);
 }
 
-function correctness_and_completness_with_draft(thing, {Thing}) {
-    validate(thing, true, true, {Thing});
+function correctness_and_completness_with_draft(thing, args) {
+    validate(thing, true, true, args);
 }
 
 
-function validate(thing, validate_completness, validate_completness_with_draft, {Thing}) { 
+function validate(thing, validate_completness, validate_completness_with_draft, {Thing, schema__props_spec, schema__draft_props_spec, schema__options}) { 
     assert(Thing);
     assert(Thing.database);
 
-    validate_schema({Thing});
+    validate_schema({Thing, type: thing.type, schema__options, schema_: schema__props_spec});
+    validate_schema({Thing, type: thing.type, schema__options, schema_: schema__draft_props_spec});
 
-    const schema_missing_error = validate_if_schema_exists_for_type(thing, {Thing});
-    if( schema_missing_error )
-        throw_errors(thing, [schema_missing_error], {Thing});
+    assert(schema__props_spec);
+    assert(schema__draft_props_spec);
+    assert(schema__options);
 
     let errors = [];
 
     errors = errors.concat(
         validate_props({
             object: thing.draft,
-            schema: thing.schema,
+            schema_: schema__draft_props_spec,
             validate_completness: false,
-            schema_addendum: schema_common.draft,
             Thing,
+            schema__options,
         })
     );
 
     errors = errors.concat(
         validate_props({
             object: thing,
-            schema: thing.schema,
+            schema_: schema__props_spec,
             validate_completness: false,
-            schema_addendum: schema_common.thing,
             Thing,
+            schema__options,
         })
     );
 
     if( validate_completness ) {
         if( ! validate_completness_with_draft ) {
-            assert(Object.keys(thing.draft).length === 0);
+            const draft_size = Object.keys(thing.draft).length;
+            assert(draft_size === 0 || draft_size === 1 && thing.draft.author);
         }
         if( validate_completness_with_draft ) {
             if( ! thing.draft.author ) {
@@ -75,19 +76,19 @@ function validate(thing, validate_completness, validate_completness_with_draft, 
         errors = errors.concat(
             validate_props({
                 object: validate_completness_with_draft ? Object.assign({}, thing, thing.draft) : thing,
-                schema: thing.schema,
+                schema_: schema__props_spec,
                 validate_completness: true,
-                schema_addendum: schema_common.thing,
                 Thing,
+                schema__options,
             })
         );
     }
 
     errors = errors.concat(
-        validate_immuatibilty(thing, thing.draft, thing.schema)
+        validate_immuatibilty(thing, schema__props_spec)
     );
 
-    throw_errors(thing, errors, {Thing});
+    throw_errors(thing, errors, {Thing, schema__props_spec});
 
 }; 
 
@@ -95,19 +96,19 @@ function validate_props(arg) {
     assert(arg.Thing);
     assert(arg.Thing.ValidationError);
     assert(arg.object);
-    assert(arg.schema);
-    assert(arg.schema_addendum);
+    assert(arg.schema_);
+    assert(arg.schema__options);
     assert(arg.validate_completness.constructor === Boolean);
+
+    const schema_ = arg.schema_;
 
     const validate_correctness = true;
 
     const errors = [];
 
-    const schema = Object.assign({}, arg.schema_addendum, arg.schema);
-
 
     for(let prop in arg.object) {
-        let prop_spec = schema[prop];
+        let prop_spec = schema_[prop];
 
         let value = arg.object[prop];
 
@@ -117,40 +118,36 @@ function validate_props(arg) {
 
         if( arg.validate_completness ) {
             prop_is_complete(prop, value, prop_spec);
-
-        }
-    }
-
-    for(let prop in schema) {
-        let prop_spec = schema[prop];
-
-        if( ! arg.validate_completness ) {
-            continue;
-        }
-        if( ! prop_spec.is_required ) {
-            continue;
-        }
-
-        // TODO be smarter
-        if( prop_spec.value ) {
-            continue;
-        }
-
-        let value = arg.object[prop];
-        if( is_missing(value) ) {
-            errors.push('property `'+prop+'` is missing but according to schema it is required');
         }
     }
 
     if( arg.validate_completness ) {
-        const required_props = (arg.schema._options||{}).is_required;
+        for(let prop in schema_) {
+            let prop_spec = schema_[prop];
+
+            if( ! prop_spec.is_required ) {
+                continue;
+            }
+
+            // TODO be smarter
+            if( prop_spec.value ) {
+                continue;
+            }
+
+            let value = arg.object[prop];
+            if( is_missing(value) ) {
+                errors.push('property `'+prop+'` is missing but according to schema it is required');
+            }
+        }
+
+        const required_props = arg.schema__options.is_required;
         if( required_props && required_props.every(prop => is_missing(arg.object[prop])) ) {
             errors.push('all of `['+required_props.join(',')+"]` are missing but one of them shouldn't be");
         }
     }
 
     for(let prop in arg.required_props) {
-        let prop_spec = schema[prop];
+        let prop_spec = schema_[prop];
 
         if( ! arg.validate_completness ) {
             continue;
@@ -170,20 +167,27 @@ function validate_props(arg) {
             return;
         }
 
+        if( value === undefined ) {
+            errors.push('property `'+prop+'` is equal to `undefined` which is forbidden');
+            return;
+        }
+
         assert(prop_spec.validation);
 
         // TODO - implement validation for type 'Thing.resource', ...
         assert(prop_spec.validation.type);
+     // const eraser_value = [null, undefined];
+        const eraser_value = [null];
         if( [String, Array].includes( prop_spec.validation.type.constructor ) ) {
-            if( ! value || ! validator.isUUID(value) ) {
+            if( !eraser_value.includes(value) && (!value || value.constructor!==String || !validator.isUUID(value)) ) {
                 errors.push('property `'+prop+'` has value `'+value+'` but value is expected to be a UUID');
             }
         }
         else {
-            if( [null, undefined].includes(value) || value.constructor !== prop_spec.validation.type ) {
-                if( ! [null, undefined].includes(value) ) {
-                    errors.push('property `'+prop+'` has value `'+value+'` but value is expected to be a '+prop_spec.validation.type);
-                }
+            // TODO properly handle unserialze Date from DB (problem: JSON saves Date as String -> same for json_data)
+            const types = prop_spec.validation.type === Date ? [Date, String] : [prop_spec.validation.type];
+            if( !eraser_value.includes(value) && !types.includes(value.constructor) ) {
+                errors.push('property `'+prop+'` has value `'+value+'` but value is expected to be a '+prop_spec.validation.type);
             }
         }
 
@@ -207,46 +211,44 @@ function validate_props(arg) {
     }
 } 
 
-function validate_immuatibilty(thing, draft, schema) { 
+function validate_immuatibilty(thing, schema__props_spec) { 
     const errors = [];
-    for(var prop in draft) {
-        if( ((schema||{})[prop]||{}).immutable ) {
-            if( thing[prop] !== undefined ) {
-                errors.push('trying to alter immutable property `'+prop+'` from `'+thing[prop]+'` to `'+draft[prop]+'`');
+    for(var prop in thing.draft) {
+        if( (schema__props_spec[prop]||{}).immutable ) {
+            if( thing[prop]!==undefined && thing[prop] !== thing.draft[prop] ) {
+                errors.push('trying to alter immutable property `'+prop+'` from `'+thing[prop]+'` to `'+thing.draft[prop]+'`');
             }
         }
     }
     return errors;
 } 
 
-function throw_errors(thing, errors, {Thing}) { 
+function throw_errors(thing, errors, {Thing, schema__props_spec}) { 
     assert(Thing);
     assert(Thing.database);
     assert(errors.constructor === Array);
 
+    const err_msg =
+        []
+        .concat([
+            '',
+            'Thing',
+            thing,
+        ])
+        .concat([
+            'with schema props',
+            JSON.stringify(schema__props_spec, null, 2),
+        ])
+        .concat([
+            'is invalid for the following reason(s)',
+            ...errors,
+        ]);
+
     if( errors.length > 0 ) {
         throw new Thing.ValidationError(
-            [
-                '',
-                'Thing',
-                thing,
-                'with schema',
-                JSON.stringify(thing.schema, null, 2),
-                'is invalid for the following reason(s)',
-            ].concat(errors)
-            .join('\n')
+            err_msg.join('\n')
         );
     }
-} 
-
-function validate_if_schema_exists_for_type(thing, {Thing}) { 
-    assert(Thing);
-    assert(Thing.database);
-
-    if( ! Thing.schema[thing.type] ) {
-        return 'a thing has type `'+thing.type+'` but no schema for `'+thing.type+'` has been provided, i.e. `Thing.schema['+thing.type+']==undefined`';
-    }
-    assert( thing.schema === (Thing.schema||{})[thing.type] );
 } 
 
 function is_missing(value) { 
@@ -259,11 +261,11 @@ function is_missing(value) {
 } 
 
 function assertize(fct) { 
-    return (thing, {Thing}) => {
-        const ValidationError = Thing.ValidationError;
+    return (thing, args) => {
+        const ValidationError = args.Thing.ValidationError;
         assert(ValidationError);
         try {
-            fct(thing, {Thing});
+            fct(thing, args);
         }
         catch(err) {
             assert(new ValidationError('foo').constructor === ValidationError);

@@ -3,28 +3,12 @@ const fetch = require('./fetch');
 const assert = require('assert');
 
 
-module.exports = long_term_cache({ 
+module.exports = long_term_cache({
+    cache_name: 'fetch',
     function_to_cache: fetch,
-    hash_input: ({url, method='GET', headers}) => {
-        assert(url && method);
-        return (
-            method + ' ' + url +
-            (headers ? (' '+JSON.stringify(headers)) : '')
-        );
-    },
+    hash_input: fetch.hash_fetch_input,
     entry_expiration: (() => {
         const ONE_DAY = 24*60*60*1000;
         return ONE_DAY*10;
     })(),
-    cache_name: 'fetch',
-    /*
-    ignore_cache_entry: ({response_connection_error, response_status_code}) => {
-        assert(response_connection_error || response_status_code);
-        return (
-            response_connection_error ||
-            response_status_code===403 || // 403 -> API rate limit exceeded
-            response_status_code.toString().startsWith('5')
-        );
-    },
-    */
-}); 
+});

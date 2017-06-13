@@ -1,41 +1,9 @@
-import assert from 'assert';
 import Thing from './thing.js';
-import mixin from './mixin/mixin.decorator.js';
-import CommentableMixin from './mixin/commentable';
-import VotableMixin from './mixin/votable';
+import CommentableMixin from './mixins/commentable';
+import VotableMixin from './mixins/votable';
 
-
-const created_at__parsed = Symbol();
-
-@mixin(CommentableMixin)
-@mixin(VotableMixin)
-class Comment extends Thing {
-    constructor(...args) {
-        super(...args);
-
-        Object.defineProperty(this, 'editing', {
-            value: false,
-            writable: true,
-            enumerable: false,
-            configurable: false,
-        });
-    }
-
-    get [created_at__parsed]() {
-        if( this.editing===true ) {
-            return null;
-        }
-        assert(this.editing===false, "`this.editing==="+this.editing+"` for "+this);
-        assert(this.created_at, "`created_at` not defined on "+this);
-        return new Date(this.created_at);
-    }
-
-    static order() {
-        return ['-editing', {to_negate: true, key: created_at__parsed}];
-    }
-
-};
-
+class Comment extends VotableMixin(CommentableMixin(Thing), {author_can_selfvote: false}) {};
 Comment.type = 'comment'; // UglifyJS2 mangles class name
+Comment.props_immutable = Thing.props_immutable.concat(['referred_resource', 'referred_thing', 'author',]);
+Comment.props_required = Comment.props_immutable;
 export default Comment;
-

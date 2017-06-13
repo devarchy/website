@@ -1,0 +1,6 @@
+@import 'nprogress/nprogress.css';
+
+#nprogress {
+   z-index: 99999;
+   filter: grayscale(1) contrast(200%) brightness(1);
+}

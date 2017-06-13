@@ -1,61 +1,37 @@
 "use strict";
 const assert = require('assert');
+const schema_common = require('../schema_common');
 
-module.exports = ({Thing}) => {
+module.exports = ({Thing, type, schema_, schema__options}) => {
     assert(Thing);
     assert(Thing.database);
-    validate_coarse({Thing});
-    walk_on_schema({Thing});
+    assert(type);
+
+    validate_type_name({type, Thing});
+    validate_schema_existence({Thing, schema_, type});
+    validate_schema_props({Thing, schema_});
+    validate_schema_options({Thing, type, schema_, schema__options});
 };
 
 
-function validate_coarse({Thing}) {
-    if( ! Thing.schema ) {
-        throw new Thing.SchemaError('Thing.schema should be an object');
-    }
-    if( Object.keys(Thing.schema).length === 0 ) {
-        throw new Thing.SchemaError('Thing.schema is empty');
-    }
-}
-
-function walk_on_schema({Thing}) {
+function validate_schema_props({Thing, schema_}) { 
     Object
-    .entries(Thing.schema)
-    .forEach(keyval => {
-        const thing_type = keyval[0];
-        const thing_spec = keyval[1];
-
-        validate_thing(thing_type, thing_spec);
-
-        Object
-        .entries(thing_spec)
-        .forEach(keyval => {
-            const prop_name = keyval[0];
-            const prop_spec = keyval[1];
-
-            if(prop_name === '_options') {
-                validate_options(prop_spec, thing_spec);
-            }
-            else {
-                validate_prop(prop_name, prop_spec);
-            }
-        });
+    .entries(schema_)
+    .forEach(([prop_name, prop_spec]) => {
+        validate_prop(prop_name, prop_spec, {Thing});
     });
-}
 
-function validate_thing(type, spec) {
-    if( type.startsWith('_') && type!=='_options' ) {
-        throw new Thing.SchemaError('found type `'+type+'` but only `_options` is allowed to start with `_`');
-    }
-    if( ! /^[a-z][a-z_]*[a-z]$/.test(type) ) {
-        throw new Thing.SchemaError('found type `'+type+'` but type name should be composed of lowercase letters and _');
-    }
-}
+    return;
+} 
 
-function validate_prop(name, spec) {
+function validate_prop(name, spec, {Thing}) { 
+    if( name.startsWith('_') ) {
+        throw new Thing.SchemaError('property `'+name+'` is not allowed to start with `_`');
+    }
+
     is_subset(Object.keys(spec), [
         'validation',
-        'order',
+        'compute_order',
         'is_required',
         'required_props',
         'value',
@@ -64,8 +40,15 @@ function validate_prop(name, spec) {
         'immutable',
         'is_unique',
         'is_async',
+        'default_value',
+        ...(
+            schema_common.thing[name]?[
+                'is_non_enumerable',
+                'is_not_user_generated',
+            ]:[]
+        ),
         // 'allow_multiple_authors', // TODO
-    ]);
+    ], Thing.SchemaError);
 
     if( name.includes('.') ) {
         throw new Thing.SchemaError('Property name `'+name+'` contains `.` which is not allowed');
@@ -78,6 +61,7 @@ function validate_prop(name, spec) {
     if( ! spec.validation.type ) {
         throw new Thing.SchemaError('validation.type is missing for '+name);
     }
+    is_subset(Object.keys(spec.validation), ['type', 'test'], Thing.SchemaError);
 
     if( spec.value !== undefined && spec.value.constructor !== Function ) {
         throw new Thing.SchemaError('value is expected to be a Function');
@@ -89,16 +73,17 @@ function validate_prop(name, spec) {
 
     if( spec.cascade_save ) {
         const types = spec.validation.type.constructor === Array ? spec.validation.type : [spec.validation.type];
-        if( types.some(type => ! type.startsWith('Thing.')) ) {
+        if( types.some(t => !t || t.constructor!==String || !t.startsWith('Thing.')) ) {
             throw new Thing.SchemaError('`cascade_save` only make sense for referred things');
         }
+        if( spec.cascade_save.constructor === Object ) {
+            is_subset(Object.keys(spec.cascade_save), ['transitive_cascade'], Thing.SchemaError);
+        }
     }
-}
+} 
 
-function validate_options(spec, thing_spec) {
-    const keys = Object.keys(spec);
-
-    if( keys.length === 0 ) throw new Thing.SchemaError('empty options found');
+function validate_schema_options({Thing, type, schema_, schema__options}) { 
+    const keys = Object.keys(schema__options);
 
     is_subset(keys, [
         'additional_views',
@@ -106,24 +91,47 @@ function validate_options(spec, thing_spec) {
         'side_effects',
         'is_private',
         'is_required',
-    ]);
+        'graveyard',
+    ], Thing.SchemaError);
 
-    if( spec.is_required ) {
-        if( ! ((spec.is_required||[]).length>0) ) {
+    if( schema__options.is_required ) {
+        if( ! ((schema__options.is_required||[]).length>0) ) {
             throw new Thing.SchemaError('`_options.is_required` should be a non-empty Array');
         }
-        spec.is_required.forEach(prop => {
-            if( ! thing_spec[prop] ) {
-                throw new Thing.SchemaError('`_options.is_required` includes `'+prop+'` but it is not defined in the schema');
+        schema__options.is_required.forEach(prop => {
+            if( ! schema_[prop] ) {
+                throw new Thing.SchemaError('`_options.is_required` for `'+type+'` includes `'+prop+'` but it is not defined in the schema');
             }
         });
     }
-}
+} 
 
-function is_subset(arr_subset, arr) {
+function validate_type_name({Thing, type}) { 
+    if( type.startsWith('_') ) {
+        throw new Thing.SchemaError('found type `'+type+"` but type isn't allowed to start with `_`");
+    }
+    if( ! /^[a-z][a-z_]*[a-z]$/.test(type) ) {
+        throw new Thing.SchemaError('found type `'+type+'` but type name should be composed of lowercase letters and _');
+    }
+} 
+
+function validate_schema_existence({Thing, schema_, type}) { 
+    if( ! schema_ ) {
+        throw new Thing.ValidationError('type `'+type+'` is missing a schema');
+    }
+    if( schema_.constructor!==Object ) {
+        throw new Thing.SchemaError('schema of type `'+type+'` should be an object');
+    }
+    if( Object.keys(schema_).length === 0 ) {
+        throw new Thing.SchemaError('schema of type `'+type+"` shouldn't be empty");
+    }
+} 
+
+function is_subset(arr_subset, arr, _SchemaError) { 
     arr_subset.forEach(el => {
         if( ! arr.includes(el) ) {
-            throw new Thing.SchemaError('unknown `'+el+'` found');
+            throw new _SchemaError('unknown option `'+el+'` found');
         }
     });
-}
+} 
+

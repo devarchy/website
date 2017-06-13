@@ -1,62 +1,9 @@
-@import '../../../../css/colors.vars.css';
-
-.css_resource_body {
-
-    width: 100%;
-    white-space: normal;
-    cursor: initial;
-
-    & .css_resource_details,
-    & .css_resource_details__loading {
-        border-width: 0 0 0 10px;
-        border-style: solid;
-        border-color: var(--color_gray);
-        padding: 0 13px;
-        margin: 15px;
-        margin-top: 5px;
-        @nest .css_resource_request & {
-            margin-left: 0px;
-        }
-    }
-    & .css_resource_details__loading {
-        padding: 20px;
-        text-align: center;
-    }
+.css_resource_details {
+    padding: 0 10px;
+    padding-top: 10px;
+    padding-bottom: 40px;
 }
 
-.css_resource_details {
-    position: relative;
-    & > h2.css_da {
-        &::after {
-            content: "";
-            display: block;
-            position: absolute;
-            width: 100%;
-            height: 29px;
-            left: 0;
-            margin-top: -26px;
-        }
-        margin-bottom: 16px;
-        font-size: 1.6em;
-        &:first-of-type {
-            padding-top: 3px;
-            margin-top:7px;
-        }
-        &:not(:first-of-type) {
-            margin-top: 36px;
-        }
-    }
-
-    & .css_resource_details__github,
-    & .css_resource_details__npm,
-    & .css_resource_details__web {
-        & svg {
-            width: 26px;
-            text-align: center;
-            color: #666;
-        }
-        & > * {
-            margin: 5px 0;
-        }
-    }
+.markdown-body {
+    font-size: 15px!important;
 }

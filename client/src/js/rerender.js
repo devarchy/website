@@ -1,4 +1,4 @@
-import assert from 'assert';
+import assert from 'assertion-soft';
 
 export default {
     carry_out: function(){

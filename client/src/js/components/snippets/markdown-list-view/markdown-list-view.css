@@ -6,7 +6,7 @@
     margin-left: 6px;
     padding-left: 10px;
     border-width: 0 0 0 6px;
-    border-color: var(--color_gray);
+    border-color: var(--css_color_gray);
     border-style: solid;
 }
 
@@ -14,6 +14,6 @@
     display: inline-block;
     vertical-align: middle;
     text-align: left;
-    margin-right: 20px;
+    margin-right: 10px;
     white-space: pre;
 }

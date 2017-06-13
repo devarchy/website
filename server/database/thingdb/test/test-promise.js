@@ -27,7 +27,12 @@ module.exports = Thing => {
                 })
                 .catch(err => {
                     // Thing.debug.log.buffer.flush();
-                    assert(turn_into_error_object.is_error_object(err));
+                    try {
+                        assert(turn_into_error_object.is_error_object(err));
+                    } catch(assert_err) {
+                        done(assert_err);
+                        return;
+                    }
                     done(err);
                 });
             });
@@ -35,7 +40,7 @@ module.exports = Thing => {
         it_validates_if: (what, test, {reason, before, timeout}={}) => {
             assert(reason);
 
-            const count = build_count();
+            const counter = build_counter();
 
             it('throws `'+Thing.ValidationError.name+'` when '+what, function(done) {
                 this.timeout(timeout || module.exports.timeout);
@@ -53,28 +58,14 @@ module.exports = Thing => {
                     .then(count => (things_counter = count))
                 )
                 .finally(() =>
-                    count.fetch((c, table) => count[table] = c)
+                    counter.fetch((c, table) => counter[table] = c)
                 )
                 .finally(() => {
                     checkpoints_passed++;
                     return test();
                 })
-                .finally(() => {
-                    checkpoints_passed++;
-                    return count.fetch((c, table) => chai_assert.equal(c, count[table]))
-                    .then(() => {
-                        checkpoints_passed++;
-                    })
-                })
-                .finally(() =>
-                    count_things()
-                    .then(count => {
-                        checkpoints_passed++;
-                        chai_assert.equal(things_counter, count);
-                    })
-                )
                 .then(() => {
-                    chai_assert(false, "an expection is expected to be thrown");
+                    chai_assert(false, "an exception is expected to be thrown");
                 })
                 .catch(err => {
                     checkpoints_passed++;
@@ -87,16 +78,41 @@ module.exports = Thing => {
                         throw err;
                     }
                     if( reason ) {
-                        assert(reason.constructor === String);
-                        /*
                         assert([RegExp, String].includes(reason.constructor));
                         if( reason.constructor === RegExp )
                             chai_assert.match(err.message, reason);
-                        */
                         if( reason.constructor === String )
                             chai_assert.include(err.message, reason);
+                        /*
+                        assert(reason.constructor === String);
+                        try {
+                            chai_assert.include(err.message, reason);
+                        }catch(e) {
+                            console.log(err);
+                            throw e;
+                        }
+                        */
                     }
                 })
+                .then(() => {
+                    checkpoints_passed++;
+                    return (
+                        counter
+                        .fetch((c, table) => {
+                            chai_assert.equal(c, counter[table]);
+                        })
+                        .then(() => {
+                            checkpoints_passed++;
+                        })
+                    );
+                })
+                .then(() =>
+                    count_things()
+                    .then(count => {
+                        checkpoints_passed++;
+                        chai_assert.equal(things_counter, count);
+                    })
+                )
                 .then(() => {
                     chai_assert.equal(checkpoints_passed, 5);
                     done();
@@ -112,7 +128,7 @@ module.exports = Thing => {
                     .then(all_things => all_things.length)
                 );
             }
-            function build_count(){
+            function build_counter(){
                 return {
                     fetch: action =>
                         Promise.all(
@@ -121,7 +137,8 @@ module.exports = Thing => {
                                 'thing_event',
                             ]
                             .map(table =>
-                                Thing.db_handle(table)
+                                Thing
+                                .db_handle(table)
                                 .count("*")
                                 .then(r => {
                                     const c = parseInt(r[0].count, 10);

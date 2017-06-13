@@ -1,25 +1,67 @@
-:root {
-    --css_icon_calendar: {
-        /*
-        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnPjxnPjxwYXRoIGQ9J20zNS44IDUuN3ExLjEgMCAyIDAuOXQwLjggMnYyOC41cTAgMS4yLTAuOCAyLjF0LTIgMC44aC0zMS40cS0xLjIgMC0yLjEtMC45dC0wLjgtMnYtMjguNXEwLTEuMiAwLjgtMnQyLjEtMC45aDIuOHYtMi4xcTAtMS41IDEuMS0yLjZ0Mi41LTFoMS40cTEuNSAwIDIuNSAxLjF0MS4xIDIuNXYyLjFoOC42di0yLjFxMC0xLjUgMS0yLjZ0Mi41LTFoMS41cTEuNCAwIDIuNSAxLjF0MSAyLjV2Mi4xaDIuOXogbS04LjYtMi4xdjYuNHEwIDAuMyAwLjIgMC41dDAuNSAwLjJoMS41cTAuMyAwIDAuNS0wLjJ0MC4yLTAuNXYtNi40cTAtMC4zLTAuMi0wLjV0LTAuNS0wLjJoLTEuNXEtMC4zIDAtMC41IDAuMnQtMC4yIDAuNXogbS0xNy4xIDB2Ni40cTAgMC4zIDAuMiAwLjV0MC41IDAuMmgxLjRxMC4zIDAgMC41LTAuMnQwLjItMC41di02LjRxMC0wLjMtMC4yLTAuNXQtMC41LTAuMmgtMS40cS0wLjMgMC0wLjUgMC4ydC0wLjIgMC41eiBtMjUuNyAzMy41di0yMi44aC0zMS40djIyLjhoMzEuNHogbS0xNC4zLTEyLjhoNXEwLjMgMCAwLjUgMC4ydDAuMiAwLjV2MS40cTAgMC4zLTAuMiAwLjV0LTAuNSAwLjJoLTV2NXEwIDAuNC0wLjIgMC42dC0wLjUgMC4yaC0xLjRxLTAuNCAwLTAuNi0wLjJ0LTAuMi0wLjZ2LTVoLTVxLTAuMyAwLTAuNS0wLjJ0LTAuMi0wLjV2LTEuNHEwLTAuMyAwLjItMC41dDAuNS0wLjJoNXYtNXEwLTAuMyAwLjItMC41dDAuNi0wLjJoMS40cTAuMyAwIDAuNSAwLjJ0MC4yIDAuNXY1eic+PC9wYXRoPjwvZz48L3N2Zz4=");
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='rgb(170,170,170)' width='13' viewBox='0 0 40 40'><g><path d='m35.8 5.7q1.1 0 2 0.9t0.8 2v28.5q0 1.2-0.8 2.1t-2 0.8h-31.4q-1.2 0-2.1-0.9t-0.8-2v-28.5q0-1.2 0.8-2t2.1-0.9h2.8v-2.1q0-1.5 1.1-2.6t2.5-1h1.4q1.5 0 2.5 1.1t1.1 2.5v2.1h8.6v-2.1q0-1.5 1-2.6t2.5-1h1.5q1.4 0 2.5 1.1t1 2.5v2.1h2.9z m-8.6-2.1v6.4q0 0.3 0.2 0.5t0.5 0.2h1.5q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.5q-0.3 0-0.5 0.2t-0.2 0.5z m-17.1 0v6.4q0 0.3 0.2 0.5t0.5 0.2h1.4q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.4q-0.3 0-0.5 0.2t-0.2 0.5z m25.7 33.5v-22.8h-31.4v22.8h31.4z m-14.3-12.8h5q0.3 0 0.5 0.2t0.2 0.5v1.4q0 0.3-0.2 0.5t-0.5 0.2h-5v5q0 0.4-0.2 0.6t-0.5 0.2h-1.4q-0.4 0-0.6-0.2t-0.2-0.6v-5h-5q-0.3 0-0.5-0.2t-0.2-0.5v-1.4q0-0.3 0.2-0.5t0.5-0.2h5v-5q0-0.3 0.2-0.5t0.6-0.2h1.4q0.3 0 0.5 0.2t0.2 0.5v5z'></path></g></svg>");
-        background-repeat: no-repeat;
-        display: inline-block;
-        content: "";
-        width: 13px;
-        height: 13px;
-        margin-left: 4px;
-        margin-bottom: -2px;
-        */
-        /* code should be equivalent to:
-        */
-        font-family: FontAwesome;
-        color: #aaa;
-        content: " \f271";
-    };
+/* using http://yoksel.github.io/url-encoder/ */
 
+/* source:
+    <svg fill="rgb(170,170,170)" preserveAspectRatio="xMidYMid meet" viewBox="0 0 40 40"><g><path d="m35.8 5.7q1.1 0 2 0.9t0.8 2v28.5q0 1.2-0.8 2.1t-2 0.8h-31.4q-1.2 0-2.1-0.9t-0.8-2v-28.5q0-1.2 0.8-2t2.1-0.9h2.8v-2.1q0-1.5 1.1-2.6t2.5-1h1.4q1.5 0 2.5 1.1t1.1 2.5v2.1h8.6v-2.1q0-1.5 1-2.6t2.5-1h1.5q1.4 0 2.5 1.1t1 2.5v2.1h2.9z m-8.6-2.1v6.4q0 0.3 0.2 0.5t0.5 0.2h1.5q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.5q-0.3 0-0.5 0.2t-0.2 0.5z m-17.1 0v6.4q0 0.3 0.2 0.5t0.5 0.2h1.4q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.4q-0.3 0-0.5 0.2t-0.2 0.5z m25.7 33.5v-22.8h-31.4v22.8h31.4z m-14.3-12.8h5q0.3 0 0.5 0.2t0.2 0.5v1.4q0 0.3-0.2 0.5t-0.5 0.2h-5v5q0 0.4-0.2 0.6t-0.5 0.2h-1.4q-0.4 0-0.6-0.2t-0.2-0.6v-5h-5q-0.3 0-0.5-0.2t-0.2-0.5v-1.4q0-0.3 0.2-0.5t0.5-0.2h5v-5q0-0.3 0.2-0.5t0.6-0.2h1.4q0.3 0 0.5 0.2t0.2 0.5v5z"></path></g></svg>
+:root {
+    --css_icon_age: {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='rgb%28170,170,170%29' preserveAspectRatio='xMidYMid meet' viewBox='0 0 40 40'%3E%3Cg%3E%3Cpath d='m35.8 5.7q1.1 0 2 0.9t0.8 2v28.5q0 1.2-0.8 2.1t-2 0.8h-31.4q-1.2 0-2.1-0.9t-0.8-2v-28.5q0-1.2 0.8-2t2.1-0.9h2.8v-2.1q0-1.5 1.1-2.6t2.5-1h1.4q1.5 0 2.5 1.1t1.1 2.5v2.1h8.6v-2.1q0-1.5 1-2.6t2.5-1h1.5q1.4 0 2.5 1.1t1 2.5v2.1h2.9z m-8.6-2.1v6.4q0 0.3 0.2 0.5t0.5 0.2h1.5q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.5q-0.3 0-0.5 0.2t-0.2 0.5z m-17.1 0v6.4q0 0.3 0.2 0.5t0.5 0.2h1.4q0.3 0 0.5-0.2t0.2-0.5v-6.4q0-0.3-0.2-0.5t-0.5-0.2h-1.4q-0.3 0-0.5 0.2t-0.2 0.5z m25.7 33.5v-22.8h-31.4v22.8h31.4z m-14.3-12.8h5q0.3 0 0.5 0.2t0.2 0.5v1.4q0 0.3-0.2 0.5t-0.5 0.2h-5v5q0 0.4-0.2 0.6t-0.5 0.2h-1.4q-0.4 0-0.6-0.2t-0.2-0.6v-5h-5q-0.3 0-0.5-0.2t-0.2-0.5v-1.4q0-0.3 0.2-0.5t0.5-0.2h5v-5q0-0.3 0.2-0.5t0.6-0.2h1.4q0.3 0 0.5 0.2t0.2 0.5v5z'%3E%3C/path%3E%3C/g%3E%3C/svg%3E");
+    }
+}
+*/
+
+/* source:
+    <svg fill="rgb(170,170,170)" preserveAspectRatio="xMidYMid meet" viewBox="0 0 40 40"><g><path d="m30 15c2.7 0 5 2.3 5 5v2.6c0 1.8-1.5 3.3-3.3 3.3-0.8 0-1.6-0.4-2.2-1l-3.6-3.6-3.6 3.6c-1.3 1.3-3.4 1.3-4.6 0l-3.6-3.6-3.6 3.6c-0.6 0.6-1.4 1-2.2 1-1.8 0-3.3-1.5-3.3-3.3v-2.6c0-2.7 2.3-5 5-5h8.4v-3.4h3.2v3.4h8.4z m-2.3 11.6c1.1 1.1 2.5 1.8 4 1.8 1.3 0 2.4-0.4 3.3-1.1v7.7c0 0.9-0.7 1.6-1.6 1.6h-26.8c-0.9 0-1.6-0.7-1.6-1.6v-7.7c0.9 0.7 2 1.1 3.3 1.1 1.5 0 3-0.7 4-1.8l1.8-1.8 1.8 1.8c2.2 2.2 6 2.2 8.2 0l1.8-1.8z m-7.7-16.6c-1.8 0-3.4-1.6-3.4-3.4 0-0.6 0.3-1.2 0.6-1.7l2.8-4.9 2.8 4.9c0.3 0.5 0.6 1.1 0.6 1.7 0 1.8-1.5 3.4-3.4 3.4z"></path></g></svg>
+*/
+:root {
+    --css_icon_age: {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='rgb%28170,170,170%29' preserveAspectRatio='xMidYMid meet' viewBox='0 0 40 40'%3E%3Cg%3E%3Cpath d='m30 15c2.7 0 5 2.3 5 5v2.6c0 1.8-1.5 3.3-3.3 3.3-0.8 0-1.6-0.4-2.2-1l-3.6-3.6-3.6 3.6c-1.3 1.3-3.4 1.3-4.6 0l-3.6-3.6-3.6 3.6c-0.6 0.6-1.4 1-2.2 1-1.8 0-3.3-1.5-3.3-3.3v-2.6c0-2.7 2.3-5 5-5h8.4v-3.4h3.2v3.4h8.4z m-2.3 11.6c1.1 1.1 2.5 1.8 4 1.8 1.3 0 2.4-0.4 3.3-1.1v7.7c0 0.9-0.7 1.6-1.6 1.6h-26.8c-0.9 0-1.6-0.7-1.6-1.6v-7.7c0.9 0.7 2 1.1 3.3 1.1 1.5 0 3-0.7 4-1.8l1.8-1.8 1.8 1.8c2.2 2.2 6 2.2 8.2 0l1.8-1.8z m-7.7-16.6c-1.8 0-3.4-1.6-3.4-3.4 0-0.6 0.3-1.2 0.6-1.7l2.8-4.9 2.8 4.9c0.3 0.5 0.6 1.1 0.6 1.7 0 1.8-1.5 3.4-3.4 3.4z'%3E%3C/path%3E%3C/g%3E%3C/svg%3E");
+    }
+}
+
+/*
+:root {
     --css_icon_loader: {
         font: normal normal normal 14px/1 FontAwesome;
         content: "\F1CE";
     };
+}
+*/
+
+/* Source:
+    <svg fill='rgb(102,102,102)' preserveAspectRatio="xMidYMid meet" viewBox="0 0 40 40"><g><path d="m39.3 20q0 3.9-1.5 7.5t-4.2 6.1-6.1 4.2-7.5 1.5-7.5-1.5-6.2-4.2-4.1-6.1-1.5-7.5q0-4.8 2.2-8.9t5.9-6.8 8.3-3.4v5.1q-4.9 1-8.1 4.9t-3.3 9.1q0 2.9 1.1 5.5t3.1 4.6 4.6 3 5.5 1.2 5.5-1.2 4.6-3 3-4.6 1.2-5.5q0-5.1-3.3-9.1t-8.1-4.9v-5.1q4.6 0.7 8.3 3.4t5.9 6.8 2.2 8.9z"></path></g></svg>
+*/
+:root {
+    --css_icon_loader: {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='rgb%28102,102,102%29' preserveAspectRatio='xMidYMid meet' viewBox='0 0 40 40'%3E%3Cg%3E%3Cpath d='m39.3 20q0 3.9-1.5 7.5t-4.2 6.1-6.1 4.2-7.5 1.5-7.5-1.5-6.2-4.2-4.1-6.1-1.5-7.5q0-4.8 2.2-8.9t5.9-6.8 8.3-3.4v5.1q-4.9 1-8.1 4.9t-3.3 9.1q0 2.9 1.1 5.5t3.1 4.6 4.6 3 5.5 1.2 5.5-1.2 4.6-3 3-4.6 1.2-5.5q0-5.1-3.3-9.1t-8.1-4.9v-5.1q4.6 0.7 8.3 3.4t5.9 6.8 2.2 8.9z'%3E%3C/path%3E%3C/g%3E%3C/svg%3E");
+    };
+}
+
+
+:root {
+    --css_loading_icon__size: 15px;
+    --css_loading_icon__middle: {
+        position: relative;
+        &:before {
+            display: inline-block;
+            content: "";
+
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 9;
+
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: var(--css_loading_icon__size);
+            min-width: var(--css_loading_icon__size);
+            min-height: var(--css_loading_icon__size);
+            overflow: visible;
+
+            @apply(--css_icon_loader);
+            animation: css_anim_spin 2s infinite linear;
+            /* improve Font Awesome's wrong icon dimensions
+            padding-left: 1px;
+            */
+        }
+    }
 }

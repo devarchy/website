@@ -22,7 +22,10 @@ const Collapse = React.createClass({
         );
     },
 });
-/*/
+*/
+
+// @3.2.0 is buggy
+// using @2.3.3 instead
 const Collapse = React.createClass({
     getInitialState: function() {
         return {
@@ -36,13 +39,12 @@ const Collapse = React.createClass({
     },
     render: function(){
         return (
-            <ReactCollapse isOpened={this.props.isOpened}>
+            <ReactCollapse isOpened={this.props.isOpened} style={this.props.style}>
                 {!this.state.never_rendered && this.props.children}
             </ReactCollapse>
         );
     },
 });
-//*/
 
 
 export default {

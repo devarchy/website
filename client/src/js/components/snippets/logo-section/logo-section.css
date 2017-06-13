@@ -1,0 +1,98 @@
+@import '../../../../css/layout.vars.css';
+@import '../../../../css/colors.vars.css';
+
+:root {
+    --css_sidebar_left_margin: 21px;
+    --css_logo_section_height: 100px;
+    --css_logo_height: 64px;
+    --css_logo_padding_top: 20px;
+    --css_logo_section_height_expanded: calc(var(--css_logo_height) + 125px);
+}
+
+.css_logo_section {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--css_sidebar_width);
+    max-width: 100%;
+    overflow-y: hidden;
+    z-index: 1;
+
+    border-style: solid;
+    border-width: 0 0 3px 0;
+    transition-property: height, background-color, border-color;
+    transition-duration: 0.6s;
+
+    background-color: var(--css_color_sidebar_background);
+    @nest #js_logo_section_2 & {
+        background-color: transparent;
+        border-right-width: 3px;
+        @nest
+        .css_hide_sidebar &,
+        .css_show_resource_view &
+        {
+            z-index: 2;
+        }
+    }
+    border-color: transparent;
+    height: var(--css_logo_height);
+    &.css_expand {
+        background-color: var(--css_color_sidebar_background) !important;
+        border-color: var(--css_color_sidebar_border);
+        height: var(--css_logo_section_height_expanded);
+    }
+}
+
+.css_sidebar_content {
+    padding-top: var(--css_logo_section_height);
+}
+
+.css_logo_wrapper {
+    display: flex;
+    align-items: flex-end;
+    height: var(--css_logo_height);
+    padding-left: var(--css_sidebar_left_margin);
+}
+
+.css_logo_menu {
+    padding-top: 10px;
+    justify-content: center;
+    > :first-child {
+        margin-top: -7px;
+    }
+
+    width: 100%;
+    line-height: 1.6em;
+
+    align-items: flex-start;
+    padding-left: var(--css_sidebar_left_margin);
+}
+
+:root {
+    --css_delay_duration: 0.7s;
+}
+
+
+.css_logo {
+    font-size: 26px;
+}
+.css_logo_text {
+    font-family: 'Cutive Mono';
+    color: #777;
+    font-size: 26px;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.css_logo_menu {
+    position: relative;
+}
+
+.css_logo_links > * {
+    color: #666 !important;
+
+    & > * > :first-child {
+        margin-left: 5px;
+        margin-right: 6px;
+    }
+}

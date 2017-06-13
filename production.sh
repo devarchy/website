@@ -7,10 +7,10 @@ if [[ $(whoami) == $(sudo whoami) ]] ; then
     exit 1
 fi
 
-git pull &&
+# git pull &&
 
-(cd server/ && npm install) &&
-(cd client/ && npm install) &&
+(cd server/ && yarn) &&
+(cd client/ && yarn) &&
 
 (cd client/ && npm run build) &&
-(cd server/ && npm run production)
+(cd server/ && npm run up)

@@ -19,7 +19,14 @@ function retrive_package_json(npm_package_name) {
             pushy: true,
         })
         .then(resp => {
-            assert(resp.response_body, resp);
+            assert(
+                resp,
+                [
+                    'npm_package_name: '+npm_package_name,
+                    'resp: '+resp,
+                ].join('\n')
+            );
+            assert(resp.response_body, npm_package_name);
             return resp.response_body;
         })
     );

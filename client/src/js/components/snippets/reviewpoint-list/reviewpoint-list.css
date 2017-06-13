@@ -1,0 +1,42 @@
+@import '../../../../css/colors.vars.css';
+
+.css_reviewpoint_symbol {
+    font-size: 0.89em;
+    margin-right: 3px;
+
+    /*
+    &.css_reviewpoint_is_negative {
+        color: var(--css_color_red);
+    }
+    &:not(.css_reviewpoint_is_negative) {
+        color: var(--css_color_green);
+    }
+    */
+}
+
+.css_review_point_body {
+    margin-left: -3px;
+    padding-top: 10px;
+    padding-left: 4px;
+    padding-bottom: 25px;
+
+    position: relative;
+    &::before {
+        position: absolute;
+        display: block;
+        content: "";
+        top: 5px;
+        left: -16px;
+        width: 6px;
+        background-color: var(--css_color_gray);
+        height: calc(100% - 14px);
+    }
+}
+
+.css_review_point_adders {
+    margin-top: 15px;
+}
+
+.css_reviewpoint {
+    margin: 5px 0;
+}

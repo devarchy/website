@@ -7,6 +7,6 @@ if [[ $(whoami) == $(sudo whoami) ]] ; then
     exit 1
 fi
 
-(cd server/ && npm run start) &&
+(cd server/ && npm run dev) &&
 
 (cd client/ && tmux new-session -A -s hotreload "npm run start")

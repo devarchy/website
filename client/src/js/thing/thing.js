@@ -1,8 +1,33 @@
-import assert from 'assert';
+import assert from 'assertion-soft';
 import validator from 'validator';
 import http from './http';
 import Promise from 'bluebird';
 Promise.longStackTraces();
+import assert_soft from 'assertion-soft';
+
+
+class Cache {
+    constructor() {
+        this._store = {};
+    }
+    get(obj) {
+        return this._store[this._hash(obj)];
+    }
+    add(obj, value) {
+        const key = this._hash(obj);
+
+        assert( ! this._store[key] );
+
+        this._store[key] = value;
+    }
+    _hash(obj) {
+        assert(obj.constructor === Object);
+        assert(Object.values(obj).every(v => [null, undefined].includes(v) || ![Object, Array].includes(v.constructor)));
+
+        return JSON.stringify(Object.entries(obj).sort(([key1], [key2]) => key1<key2));
+    }
+}
+const cache__referrers = new Cache();
 
 
 const IS_UPSERT = Symbol();
@@ -24,27 +49,27 @@ export default class Thing {
             }
         }
 
-        const draft = props.draft;
+        const draft = props.draft||{};
         delete props.draft;
 
-        Object.assign(this, props);
+        assert_soft(this.constructor.props_immutable);
+        const props_immutable = this.constructor.props_immutable||[];
 
-        Object.defineProperty(this, 'draft', {
-            value: new Draft(this),
-            enumerable: false,
-            configurable: false,
-            writable: false,
+        assign_immutable({
+            obj: this,
+            props_immutable,
+            values: props,
         });
-        Object.assign(this.draft, draft);
-        assert(!this.propertyIsEnumerable('draft'));
-        assert(this.draft && this.draft.constructor === Draft);
 
-        Object.defineProperty(this, 'constructed_at', {
-            value: new Date(),
-            enumerable: false,
-            configurable: false,
-            writable: false,
+        Object.defineProperty(this, 'draft', {value: new Draft(this)});
+        assign_immutable({
+            obj: this.draft,
+            props_immutable,
+            values: draft,
         });
+
+        assert_soft(this.constructor.props_required);
+        check_required_props(this, this.constructor.props_required||[]);
 
         // we use this as to have a key for things that are new and therefore don't have an id yet (ID comes from backend)
         // - we use it as key for react
@@ -64,6 +89,42 @@ export default class Thing {
             configurable: false,
             writable: false,
         });
+
+        return this;
+
+        function assign_immutable({obj, props_immutable, values}) { 
+            Array.from(new Set(
+                Object.keys(values)
+                .concat(props_immutable)
+            ))
+            .forEach(prop => {
+                const val_init = values[prop];
+                if( ! props_immutable.includes(prop) ) {
+                    obj[prop] = val_init;
+                } else {
+                    assert_soft(val_init!==null);
+                    if( ![null, undefined].includes(val_init) ) {
+                        Object.defineProperty(obj, prop, {value: val_init, enumerable: true});
+                    } else {
+                        Object.defineProperty(obj, prop, {
+                            enumerable: false,
+                            configurable: true,
+                            set: val => {
+                                assert_soft(![null, undefined].includes(val));
+                                Object.defineProperty(obj, prop, {value: val, enumerable: true});
+                            },
+                        });
+                    }
+                }
+            });
+        } 
+
+        function check_required_props(thing, props_required) { 
+            props_required
+            .forEach(prop => {
+                assert_soft([thing[prop], thing.draft[prop]].some(val => ![null, undefined].includes(val)), thing.type, prop);
+            });
+        } 
     } 
 
     get [IS_UPSERT] () { 
@@ -82,12 +143,16 @@ export default class Thing {
         if( this.is_new ) return [];
 
         const REFERRING_PROPS = ['referred_resource', 'referred_thing', 'referred_tag', 'referred_tagged', ];
-        return (
-         // Thing.sort(
-                Thing.things.all
-                .filter(thing => REFERRING_PROPS.map(prop => thing.draft[prop]||thing[prop]).includes( this.id ))
-         // )
+
+        let referrers = (
+            Thing.things.all
+            .filter(thing => REFERRING_PROPS.map(prop => thing.draft[prop]||thing[prop]).includes( this.id ))
+            .filter(thing => !thing.is_removed)
         );
+
+        referrers = Thing.sort(referrers);
+
+        return referrers;
     } 
 
     get_prop_val(key) { 
@@ -107,9 +172,16 @@ export default class Thing {
         assert(author_id);
         const author_thing = Thing.things.id_map[author_id];
         assert(author_thing);
-        const github_username = author_thing.github_info.login;
+        const github_username = author_thing.user_name;
         assert(github_username);
         return github_username;
+    } 
+
+    get is_author() { 
+        return (
+            Thing.things.logged_user &&
+            Thing.things.logged_user.id === this.author
+        );
     } 
 
     toString() { 
@@ -136,15 +208,25 @@ export default class Thing {
 
     } 
 
-    static retrieve_things (properties_filter={}) { 
-        assert(this.prototype instanceof Thing);
-        assert(this !== Thing);
-        assert(this.type);
-        assert(this.result_fields);
+    static retrieve_things (properties_filter, {result_fields}={}) { 
+        assert(Object.keys(properties_filter).length>0);
+
+        properties_filter = Object.assign({}, properties_filter);
+
+        if( this !== Thing ) {
+            assert(this.prototype instanceof Thing);
+            assert(this.type);
+            Object.assign(properties_filter, {type: this.type});
+            assert(result_fields===undefined);
+            assert(this.result_fields);
+            result_fields = this.result_fields;
+        }
+
+        assert(result_fields);
 
         return http.retrieve_things({
-            properties_filter: Object.assign({}, properties_filter, {type: this.type}),
-            result_fields: this.result_fields,
+            properties_filter,
+            result_fields,
         });
     } 
 
@@ -172,7 +254,7 @@ export default class Thing {
         const date_before = new Date();
         const things_sorted = things.sort(get_order_fct(opts));
         const date_after = new Date();
-        if( date_after - date_before > 40 ) {
+        if( date_after - date_before > 350 ) {
             console.warn('slow sorting of '+things.length+' things took '+(date_after - date_before)+'ms . With opts '+JSON.stringify(opts));
         }
 
@@ -347,15 +429,15 @@ export default class Thing {
         ];
     } 
 
-    static get_by_id(id) { 
+    static get_by_id(id, {can_be_null}={}) { 
      // id can be the id of a category which is not a UUID for now
      // assert(!id || validator.isUUID(id));
         const ret = Thing.things.all.find(thing => thing.id === id);
-        assert(ret, id);
-        return ret;
+        assert_soft(ret || can_be_null, "can't find Thing with id `"+id+"`");
+        return ret || null;
     } 
 
-    static get_by_props(props) { 
+    static get_by_props(props, {can_be_null, can_be_removed}={}) { 
         assert(this.prototype instanceof Thing);
         assert(this !== Thing);
         assert(this.type);
@@ -363,16 +445,36 @@ export default class Thing {
         assert(props.constructor === Object);
         assert([this.type, undefined].includes(props.type));
 
-        return Thing.things.all.find(thing =>
-            thing.type === this.type &&
-            Object.entries(props)
-            .every(([prop, val]) => {
-                if( (val||0).constructor === String && (thing[prop]||0).constructor === String ) {
-                    return thing[prop].toLowerCase() === val.toLowerCase();
-                }
-                return thing[prop] === val;
-            })
+        let things = (
+            Thing
+            .things
+            .all
+            .filter(thing =>
+                thing.type === this.type &&
+                Object.entries(props)
+                .every(([prop, val]) => {
+                    if( (val||0).constructor === String && (thing[prop]||0).constructor === String ) {
+                        return thing[prop].toLowerCase() === val.toLowerCase();
+                    }
+                    return thing[prop] === val;
+                })
+            )
         );
+
+        assert_soft(things.length<=1, things, props);
+
+        if( !can_be_removed ) {
+            things = things.filter(thing => !thing.is_removed);
+        }
+
+        let thing = things[0];
+
+        if( ! thing ) {
+            assert_soft(can_be_null, props);
+            return null;
+        }
+
+        return thing;
     } 
 
     static retrieve_by_props(props) { 
@@ -381,7 +483,7 @@ export default class Thing {
         assert(this.type);
         assert([this.type, undefined].includes(props.type));
 
-        const thing = this.get_by_props(props);
+        const thing = this.get_by_props(props, {can_be_removed: true});
         if( thing ) {
             return Promise.resolve(thing);
         }
@@ -396,7 +498,10 @@ export default class Thing {
         const CLS_TYPES = [
             'resource',
             'tag',
+            'user',
             'comment',
+            'reviewpoint',
+            'genericvote',
         ];
 
         const ret = {};
@@ -448,18 +553,136 @@ export default class Thing {
             'updated_at',
         ];
     } 
+
+    static get_things({type, ...props}) { 
+        assert_soft(type);
+
+        return (
+         // Thing.things.of_type[type] // TODO
+            Thing.things.all
+            .filter(thing => {
+                if( thing.type !== type ) return false;
+                assert_soft(thing.type === type); // TODO
+                return (
+                    Object.entries(props)
+                    .every(([prop, val]) => {
+                        assert_required(thing, prop, val);
+                        assert_immutability(thing, prop);
+                        return [thing[prop], thing.draft[prop]].includes(val);
+                    })
+                );
+            })
+        );
+
+        function assert_immutability(thing, prop) {
+            assert_immutability_of_prop(thing, prop);
+            assert_immutability_of_prop(thing.draft, prop);
+            assert_soft(![thing[prop], thing.draft[prop]].every(v => [null,undefined].includes(v)), thing.type, prop, thing[prop], thing.draft[prop]);
+            assert_soft(thing[prop]===undefined || thing.draft[prop]===undefined || thing[prop]===thing.draft[prop]);
+        }
+        function assert_required(thing, prop, val) {
+            assert_soft(![null, undefined].includes(val), thing.type, prop, val, thing);
+            assert_soft([thing[prop], thing.draft[prop]].some(v => ![null, undefined].includes(v)), thing.type, prop);
+        }
+        function assert_immutability_of_prop(obj, prop){
+            const descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+            assert_soft(descriptor, obj, prop, obj[prop]);
+            assert_soft(!descriptor || !descriptor.writable, obj, prop, obj[prop]);
+        }
+
+    } 
+
+    static get_things_from_cache(props) { 
+
+        return this.get_things(props);
+
+        assert(props);
+        let result = cache__referrers.get(props);
+
+        if( ! result ) {
+            result = this.get_things(props);
+            cache__referrers.add(props, result);
+        }
+
+        return result;
+    } 
+
+    static get insight() { 
+        const all = Thing.things.all;
+        const resources__insights = {};
+
+        [...new Set(
+            all.filter(t => t.type==='tagged').map(t => t.referred_resource)
+        )]
+        .forEach(resource_id => {
+            const resource = Thing.get_by_id(resource_id);
+            resources__insights[resource.npm_package_name] = resource.insight;
+        });
+
+        console.log(JSON.stringify(resources__insights, null, 2));
+        console.log(resources__insights);
+    } 
+
+    // *c*onsole *s*earch
+    static cs(str) { 
+        assert_soft(str);
+        const hits = (
+            Thing.things.all
+            .filter(t => {
+                if( t.type==='tag' ) {
+                    if( t.is_category ) {
+                        if( t.category__title.toLowerCase().includes(str) ) {
+                            return true;
+                        }
+                    }
+                    if( t.is_catalog ) {
+                        if( t.name.toLowerCase().includes(str) ) {
+                            return true;
+                        }
+                    }
+                }
+                if( t.type==='resource' ) {
+                    if( t.resource_name.toLowerCase().includes(str) ) {
+                        return true;
+                    }
+                }
+                return false;
+            })
+        );
+        const single_hit = hits.length===1 && hits[0];
+        if( single_hit ) {
+            return single_hit.toString();
+        }
+        return (
+            hits || null
+        );
+    } 
+
+    static generate_human_id(name) { 
+        if( ! assert_soft((name||1).constructor===String, name) ) return name;
+
+        let hid = name;
+        hid = hid.toLowerCase();
+        if( /\s/.test(hid) ) {
+            hid = hid.replace(/[^\sa-z0-9]/g, '');
+            hid = hid.replace(/[\s]/g, '-');
+        } else {
+            hid = hid.replace(/[^\-a-z0-9]/g, '');
+        }
+        hid = encodeURIComponent(hid);
+        return hid;
+    } 
 }
 
 const THE_THING = Symbol();
 class Draft { 
     constructor(thing) {
         Object.defineProperty(this, THE_THING, {value: thing});
-        assert(this.propertyIsEnumerable(THE_THING) === false);
     }
 
     save() {
-        const thing = this[THE_THING];
-        const draft = this;
+        const thing = Object.assign({}, this[THE_THING]);
+        const draft = Object.assign({}, this);
 
         for(let i in draft) {
             if( i === 'author' )
@@ -478,7 +701,18 @@ class Draft {
         // we need this to replace new thing with thing coming from backend
         const thing_key = thing.key;
 
-        return http.save(thing_info, thing_key);
+        return (
+            http.save(thing_info, thing_key)
+            .then(ret => {
+                for(var prop in this) {
+                    if( (this[THE_THING].constructor.props_immutable||[]).includes(prop) ) {
+                        continue;
+                    }
+                    delete this[prop];
+                }
+                return ret;
+            })
+        )
     }
 }; 
 
@@ -488,6 +722,9 @@ Thing.things = {
     id_map: {},
     logged_user: null,
 };
+
+Thing.props_immutable = ['type', ];
+Thing.props_required = Thing.props_immutable;
 
 Thing.load = {
     view: http.view,

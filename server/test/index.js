@@ -1,33 +1,40 @@
 require('mocha');
 const assert = require('better-assert');
 const assert_node = require('assert');
-const http = require('request-promise');
+const request = require('request-promise');
 const config = require('../http/config');
 const path = require('path');
-const Promise = require('bluebird'); Promise.longStackTraces();
 const Thing = require('../database');
 const uuid = require('node-uuid');
+const env = require('../util/env');
 require('timerlog')({disable_all: true});
+//require('request-debug')(request);
 
 
 const HOST = 'localhost';
 const URI_BASE = config.protocol + HOST + ':' + config.port;
 
-const GITHUB_SESSION_USERNAME = process.env.GITHUB_SESSION_USERNAME;
-const GITHUB_SESSION_COOKIE = process.env.GITHUB_SESSION_COOKIE;
-const DEVARCHY_SESSION_COOKIE = process.env.DEVARCHY_SESSION_COOKIE;
-if( ! GITHUB_SESSION_COOKIE || ! GITHUB_SESSION_USERNAME || ! DEVARCHY_SESSION_COOKIE) { throw new Error('env variable missing') }
+if( ! env.GITHUB_SESSION_COOKIE || ! env.GITHUB_SESSION_USERNAME || ! env.DEVARCHY_SESSION_COOKIE) {
+    throw new Error('env variable missing');
+}
 
-const jar = http.jar();
-jar.setCookie(
-    http.cookie('user_session='+GITHUB_SESSION_COOKIE),
-    'https://github.com');
-/*
-jar.setCookie(
-    http.cookie('sid='+
-    DEVARCHY_SESSION_COOKIE),
-    URI_BASE);
-//*/
+
+
+const jar = request.jar();
+setup_cookies([
+    {
+        origin: 'https://github.com',
+        key: 'user_session',
+        val: env.GITHUB_SESSION_COOKIE,
+    },
+    /*
+    {
+        origin: URI_BASE,
+        key: 'sid',
+        val: env.DEVARCHY_SESSION_COOKIE,
+    },
+    */
+]);
 
 
 describe('API', function() {
@@ -35,19 +42,22 @@ describe('API', function() {
     var resource;
     var user;
 
-    it('provides resource list', done => { 
-        api_call({
+    it('provides resource list', function(done) { 
+        this.timeout(5000);
+        http_call({
             path_base: '/api/things/',
             path_args: {
                 properties_filter: {type: 'resource'},
                 result_fields: ['id', 'type', 'author', ],
             },
         })
-        .then(resources => {
-            assert( resources && resources.constructor === Array && resources.length > 10 );
-            assert( resources && resources.every(thing => thing.type === 'resource') );
+        .then(resp => {
+            assert( resp.constructor === Object );
+            const things_matched = resp.things_matched;
+            assert( things_matched.constructor === Array && things_matched.length > 10 );
+            assert( things_matched.every(thing => thing.type === 'resource') );
 
-            resource = resources[0];
+            resource = things_matched[0];
         })
         .then(() => {
             done();
@@ -55,105 +65,110 @@ describe('API', function() {
     }); 
 
     it('provides authentication status when logged out', function(done){ 
-        api_call({
+        http_call({
             path: '/api/user',
-            jar: null,
-        })
-        .then(() => {
-            assert(false);
-        })
-        .catch(err => {
-            assert( err.statusCode === 401 );
-            done();
-        });
-    }); 
-
-    it('provides view for a resource', done => { 
-        api_call({
-            path_base: '/api/view/',
-            path_args: [{id: resource.id}],
-        })
-        .then(things => {
-            assert( things && things.length > 0 );
-            assert( things.some(thing => thing.id === resource.id) );
-            assert( things.some(thing => thing.id === resource.author) );
-        })
-        .then(() => {
-            done();
-        });
-    }); 
-
-    /*
-    it('cookie is still valid', function(done) { 
-        this.timeout(20000);
-        http({
-            method: 'GET',
-            uri: 'https://github.com',
+         // jar: null,
         })
         .then(resp => {
-            console.log(resp);
-            assert( resp.indexOf(GITHUB_SESSION_USERNAME) !== -1, '`user_session` cookie from github.com seems to be expired' );
+            assert(resp===null);
+            done();
+        })
+    }); 
+
+    it('provides view for a resource', function(done) { 
+        http_call({
+            path_base: '/api/view/',
+            path_args: {things: [{id: resource.id}], show_removed_things: true},
+        })
+        .then(resp => {
+            assert( resp.constructor === Object );
+            const things_matched = resp.things_matched;
+            assert( things_matched.constructor === Array && things_matched.length > 0 );
+            assert( things_matched.some(thing => thing.id === resource.id) );
+            assert( things_matched.some(thing => thing.id === resource.author) );
+        })
+        .then(() => {
+            done();
+        });
+    }); 
+
+    it('cookie is still valid', function(done) { 
+        this.timeout(20000);
+        http_call({
+            uri: 'https://github.com',
+            json: false,
+        })
+        .then(resp => {
+            assert( resp.includes('GitHub') );
+            assert( resp.indexOf(env.GITHUB_SESSION_USERNAME) !== -1, '`user_session` cookie from github.com seems to be expired' );
             done();
         })
         .catch(err => { throw err })
     }); 
-    //*/
 
     it('can log user in', function(done) { 
         this.timeout(20000);
 
-        api_call({
+        http_call({
             path: '/auth/github',
             json: undefined,
         })
         .then(() =>
-            api_call({
+            http_call({
                 path: '/api/user',
             })
-            .catch(err => {
-                if( err.statusCode === 401 ) {
-                    throw new Error("app doesn't seem to be authorized by `"+GITHUB_SESSION_USERNAME+"` anymore, please re-authorize");
+            .then(resp => {
+                if( resp === null ) {
+                    throw new Error([
+                        '',
+                        "app is not authenticating with following cookies:",
+                        JSON.stringify(jar.getCookies(URI_BASE), null, 2),
+                        "Possible reasons:",
+                        " - using production keys instead of dev keys => GitHub production key & secret => wrong OAuth redirect => in that case bell doesn't seem to turn `bell-github` cookie into `sid` cookie",
+                        " - app is not authorized by `"+env.GITHUB_SESSION_USERNAME+"` anymore",
+                        '',
+                    ].join('\n'));
                 }
-                throw err;
+                return resp;
             })
         )
         .then(() => {
             done();
         });
     }); 
-    //*/
 
     it('saves user session', function(done) { 
-        api_call({
+        http_call({
             path: '/api/user',
         })
         .then(resp => {
-            assert(resp.length === 1);
-            assert(resp[0].type === 'user');
-            assert(resp[0].github_login === GITHUB_SESSION_USERNAME);
-            user = resp[0];
+            assert(resp.constructor === Object);
+            assert(resp.things_matched.length === 1);
+            assert(resp.things_matched[0].type === 'user');
+            assert(resp.things_matched[0].github_login === env.GITHUB_SESSION_USERNAME);
+            user = resp.things_matched[0];
             done();
         })
     }); 
 
     it('when user logs in, its email is saved', function(done) { 
-        Thing.database.load.things({type: 'user_private_data', referred_user: user.id})
-        .then(things => {
-            assert(things.length===1);
-            assert(things[0].email === 'github.com@brillout.com');
+        Thing.database.load.load_things_by_props({type: 'user_private_data', referred_user: user.id})
+        .then(resp => {
+            assert(resp.things_matched.length===1);
+            assert(resp.things_matched[0].email === 'github.com@brillout.com');
             done();
         })
     }); 
 
     it('forbids retrieving private things', function(done) { 
-        api_call({
+        http_call({
             path_base: '/api/things/',
             path_args: {
                 properties_filter: {type: 'user_private_data'},
                 result_fields: ['id', 'email', 'type', ],
             },
         })
-        .then(things => {
+        .then(() => {
             assert(false);
         })
         .catch(err => {
@@ -167,23 +182,24 @@ describe('API', function() {
     }); 
 
     it('forbids saving something as another user', function(done) { 
-        api_call({
+        http_call({
             path_base: '/api/things/',
             path_args: {
                 properties_filter: {type: 'user'},
                 result_fields: ['id', 'type', 'github_login', ],
             },
         })
-        .then(users => {
+        .then(resp => {
+            const users = resp.things_matched;
             assert(users.every(u => u.type==='user'));
-            assert(users.some(u => u.github_login === GITHUB_SESSION_USERNAME));
-            assert(users.some(u => u.github_login !== GITHUB_SESSION_USERNAME));
+            assert(users.some(u => u.github_login === env.GITHUB_SESSION_USERNAME));
+            assert(users.some(u => u.github_login !== env.GITHUB_SESSION_USERNAME));
             const other_user = users.find(u => u.id !== user.id);
             assert(other_user.id);
             return other_user;
         })
         .then(other_user =>
-            api_call({
+            http_call({
                 method: 'POST',
                 path: '/api/save',
                 body: {
@@ -207,27 +223,36 @@ describe('API', function() {
     }); 
 });
 
-function api_call(obj) { 
-    if( obj.path_base ) {
-        assert(obj.path_args);
-        assert(obj.path===undefined);
-        obj.path = obj.path_base+encodeURIComponent(JSON.stringify(obj.path_args));
-        delete obj.path_base;
-        delete obj.path_args;
+function http_call(args) { 
+    const http_args = {
+        method: 'GET',
+        json: true,
+        jar,
+    };
+
+    if( args.path_base ) {
+        assert(args.path_args);
+        assert(args.path===undefined);
+        args.path = args.path_base+encodeURIComponent(JSON.stringify(args.path_args));
+        delete args.path_base;
+        delete args.path_args;
     }
-    if( obj.path ) {
-        assert(obj.uri===undefined);
-        obj.uri = URI_BASE + (obj.path||'');
-        delete obj.path;
+
+    if( args.path ) {
+        assert(args.uri===undefined);
+        http_args.uri = URI_BASE + (args.path||'');
+        delete args.path;
     }
-    return http(
-        Object.assign(
-            {
-                method: 'GET',
-                json: true,
-                jar,
-            },
-            obj
-        )
-    );
+
+    Object.assign(http_args, args);
+
+    return request(http_args);
+} 
+
+function setup_cookies(cookies) { 
+    cookies
+    .forEach(({origin, key, val}) => {
+        // `setCookie` is cumulative => calling `setCookie` several times is fine
+        jar.setCookie(request.cookie(key+'='+val), origin);
+    });
 } 

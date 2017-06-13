@@ -1,30 +1,75 @@
 <!DOCTYPE html>
-<html class="css_da">
+<html class="css_da is_loading_initial_data">
 
   <head>
-    <meta name="description" content="Catalogs" property="og:description" itemprop="description">
-    <meta charset="UTF-8">
-    <title>Catalogs</title>
+      <meta name="description" content='<span id="replaceme"></span>' property="og:description" itemprop="description">
+      <meta charset="UTF-8">
+      <!--
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+      -->
+      <title><span id="replaceme"></span></title>
+      <!--
+      <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+      -->
+      <% for (var css in htmlWebpackPlugin.files.css) { %>
+      <link href="<%= htmlWebpackPlugin.files.css[css] %>" rel="stylesheet">
+      <% } %>
   </head>
 
   <body>
 
-    <div class="css_header_wrapper"> <!-- wrapper for having background-color while having custom scrollbar -->
-      <div class="css_header">
-        <div class="css_header_content"> <!-- content div for footer -->
+    <div id="js_logo_section_2"><span id="replaceme"></span></div>
 
-          <div id="js_tag_list" class="css_tag_list"></div>
-
-          <div class="css_footer">
-            <div id="js_more"></div>
-            <div id="js_userinfo" class="css_userinfo"></div>
-          </div>
-
+    <div class="css_tag_list">
+        <!-- wrapper for having background-color while having custom scrollbar -->
+        <div class="css_sidebar_wrapper">
+            <div class="css_sidebar">
+                <div id="js_logo_section_1"><span id="replaceme"></span></div>
+                <div id="js_tag_list"><span id="replaceme"></span></div>
+            </div>
         </div>
-      </div>
     </div>
 
-    <div id='js_content' class="css_content"></div>
+    <div class='sel_main_view' id="sel_scroll_area">
+        <div class='sel_main_view_wrapper'>
+            <div class='sel_main_view_content'><span id="replaceme"></span></div>
+        </div>
+    </div>
+
+    <div class='sel_resource_view'>
+        <div class="sel_resource_view__close_button"></div>
+        <div class="sel_resource_view__scroll_area"></div>
+    </div>
+
+    <!--
+        Instead of using `defer` we use following script to make sure that heavy script is fetched at last and after images
+        - http://stackoverflow.com/questions/588040/window-onload-vs-document-onload/38517365#38517365
+        - https://www.w3.org/TR/html5/scripting-1.html#attr-script-defer
+    -->
+    <script>
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                var scripts = [
+                  <% for (var chunk in htmlWebpackPlugin.files.chunks) { %>
+                    '<%= htmlWebpackPlugin.files.chunks[chunk].entry %>',
+                  <% } %>
+                  <% if (htmlWebpackPlugin.options.devServer) { %>
+                    '<%= htmlWebpackPlugin.options.devServer%>/webpack-dev-server.js',
+                  <% } %>
+                  ''
+                ];
+                for(var i in scripts) {
+                    if( !scripts[i] ) continue;
+                    var script = document.createElement('script');
+                    script.type = 'text/javascript';
+                    script.async = true;
+                    script.src = scripts[i];
+                    document.head.appendChild(script);
+                }
+            }, 100);
+        }, {passive: true});
+    </script>
+
   </body>
 
 </html>

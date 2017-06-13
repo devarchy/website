@@ -1,29 +1,31 @@
 import React from 'react';
 
+import Thing from '../../thing';
+
 import AuthPage from '../pages/auth';
 import LinkMixin from '../mixins/link';
 
 
 const LoginRequired = React.createClass({
     render: function(){
-        if( Thing.things.logged_user ) {
+        const DEBUG = typeof window !== "undefined" && window.location.host === 'localhost:8082';
+        if( Thing.things.logged_user && !DEBUG ) {
             return null;
         }
 
         return (
-            <div className="css_color_red css_p">
-                Log in required
-                {' '}
-                {this.props.text}
-                <br/>
-                <LinkMixin.component
-                  to={AuthPage.route.interpolate()}
+            <span
+              className={this.props.className}
+              style={Object.assign({textDecoration: 'underline'}, this.props.style)}
+              children={
+                <LinkMixin
+                  to={AuthPage.page_route_spec.interpolate_path()}
+                  track_info={{action: 'login required text'}}
                 >
-                    <span className="css_color_contrib css_action_text">
-                        Log in with GitHub
-                    </span>
-                </LinkMixin.component>
-            </div>
+                    Log in {' '} {this.props.text}
+                </LinkMixin>
+              }
+            />
         );
     }
 });

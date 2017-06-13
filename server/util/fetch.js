@@ -13,6 +13,7 @@ const normalize_url = require('./normalize_url');
 
 module.exports = fetch;
 
+module.exports.hash_fetch_input = hash_fetch_input;
 
 function fetch(args) {
     const {pushy, turn_https_to_http} = args;
@@ -184,7 +185,14 @@ function fetch_with_request_promise(request) {
                 if( (response.message||'').includes('Invalid URI') ) {
                     return "URL `"+request_url+"` seems to be malformatted";
                 }
-                if( ['EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', ].includes(response_error_code) ) {
+                const known_errors = [
+                    'EAI_AGAIN',
+                    'ECONNRESET',
+                    'ETIMEDOUT',
+                    'ENOTFOUND',
+                    'UNABLE_TO_VERIFY_LEAF_SIGNATURE', // some certificate error, not sure what it means exactly
+                ];
+                if( known_errors.includes(response_error_code) ) {
                     return "got `"+response_error_code+"` on `"+subject+"`";
                 }
                 return null;
@@ -335,4 +343,12 @@ function make_promise_pushy(promise_fct, {retry_condition}) {
             throw err;
         });
     }
+} 
+
+function hash_fetch_input({url, method='GET', headers}) { 
+    assert(url && method);
+    return (
+        method + ' ' + url +
+        (headers ? (' '+JSON.stringify(headers)) : '')
+    );
 } 

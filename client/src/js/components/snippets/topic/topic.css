@@ -1,0 +1,11 @@
+.sel_topic {
+    font-size: 0.9em;
+    border: 1px solid #aaa;
+    border-radius: 2px;
+    padding: 0px 7px;
+    background: #fafafa;
+    @nest
+    & + & {
+        margin-left: 7px;
+    }
+}

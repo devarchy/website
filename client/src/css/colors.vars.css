@@ -1,3 +1,23 @@
 :root {
-    --color_gray: #f7f7f7;
+    --css_color_gray: #f7f7f7;
+
+    --css_color_red:
+    /*
+    #bd362f
+    #a90a3b
+    #ab0000
+    */
+    #d82b50
+        ;
+
+    /*
+    --css_color_green: #009a46;
+    --css_color_green: #009000;
+    */
+    --css_color_green: #14a94b;
+
+    --css_color_sidebar_background: #fcfcfc;
+    --css_color_sidebar_border: #f5f5f5;
+
+    --css_color_background: #fefefe;
 }

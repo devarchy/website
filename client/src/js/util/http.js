@@ -1,4 +1,4 @@
-import assert from 'assert';
+import assert from 'assertion-soft';
 import fetch from 'isomorphic-fetch';
 import Promise from 'bluebird';
 import timerlog from 'timerlog';
@@ -20,7 +20,12 @@ const http = function({uri, method, body, json, qs, withCredentials = true, }) {
         qs = null;
     }
 
-    const log_id = timerlog({tag: 'performance', start_timer: true, message: method+' '+uri, disabled: false});
+    const log_id = timerlog({
+        disable: false,
+        tags: ['client', 'performance'],
+        start_timer: true,
+        message: method+' '+uri,
+    });
     return (
         new Promise((resolve, reject) => {
             fetch( uri, {
@@ -30,7 +35,10 @@ const http = function({uri, method, body, json, qs, withCredentials = true, }) {
                     credentials: withCredentials ? 'include' : 'same-origin',
             })
             .then(resp => resolve(resp))
-            .catch(err => reject(err))
+            .catch(err => {
+                console.log('Error while fetching `'+method+' '+uri+'`');
+                reject(err);
+            });
         })
     )
     .finally(() => {timerlog({id: log_id, end_timer: true})})
@@ -63,7 +71,7 @@ class HttpError extends ExtendableError {
 
 
 http.HttpError = HttpError;
-module.exports = http;
+export default http;
 
 
 function process_response(response, method, json) {
@@ -79,7 +87,19 @@ function process_response(response, method, json) {
     return (
         Promise.resolve()
     )
-    .then(() => json && response.json().then(response_body => {response_copy.body = response_body}))
+    .then(() => {
+        if( !json ) {
+            return;
+        }
+        return (
+            response.json()
+            .then(response_body => {response_copy.body = response_body})
+            .catch(err => {
+                console.log('Error while parsing json for `'+method+' '+response_copy.url+'`');
+                throw err;
+            })
+        );
+    })
     .then(() => {
         if (response_copy.status >= 200 && response_copy.status < 300) {
             return response_copy.body;

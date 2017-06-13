@@ -1,0 +1,27 @@
+/* fix `inline-style-prefixer`'s `display: flex` bug in `react-md-spinner` */
+.css_markdown_loader__react > * {
+    display: flex !important;
+}
+
+/* We set the keyframes via CSS so that html coming from backend can properly be styled.
+   Otherwise loader doesn't work until JS has loaded. */
+@keyframes __react-md-spinner-animation__root-rotate{to{transform: rotate(360deg);}}
+@keyframes __react-md-spinner-animation__fill-unfill-rotate{12.5%{transform: rotate(135deg);}25%{transform: rotate(270deg);}37.5%{transform: rotate(405deg);}50%{transform: rotate(540deg);}62.5%{transform: rotate(675deg);}75%{transform: rotate(810deg);}87.5%{transform: rotate(945deg);}to{transform: rotate(1080deg);}}
+@keyframes __react-md-spinner-animation__layer-1-fade-in-out{0%{opacity: 1;}25%{opacity: 1;}26%{opacity: 0;}89%{opacity: 0;}90%{opacity: 1;}to{opacity: 1;}}
+@keyframes __react-md-spinner-animation__layer-2-fade-in-out{0%{opacity: 0;}15%{opacity: 0;}25%{opacity: 1;}50%{opacity: 1;}51%{opacity: 0;}to{opacity: 0;}}
+@keyframes __react-md-spinner-animation__layer-3-fade-in-out{0%{opacity: 0;}40%{opacity: 0;}50%{opacity: 1;}75%{opacity: 1;}76%{opacity: 0;}to{opacity: 0;}}
+@keyframes __react-md-spinner-animation__layer-4-fade-in-out{0%{opacity: 0;}65%{opacity: 0;}75%{opacity: 1;}90%{opacity: 1;}to{opacity: 0;}}
+@keyframes __react-md-spinner-animation__left-spin{from{transform: rotate(130deg);}50%{transform: rotate(-5deg);}to{transform: rotate(130deg);}}
+@keyframes __react-md-spinner-animation__right-spin{from{transform: rotate(-130deg);}50%{transform: rotate(5deg);}to{transform: rotate(-130deg);}}
+/* avoid cssnano to think that the keyframes are unused and to discard them */
+.i_should_not_exist {
+    animation-name:
+        __react-md-spinner-animation__root-rotate,
+        __react-md-spinner-animation__fill-unfill-rotate,
+        __react-md-spinner-animation__layer-1-fade-in-out,
+        __react-md-spinner-animation__layer-2-fade-in-out,
+        __react-md-spinner-animation__layer-3-fade-in-out,
+        __react-md-spinner-animation__layer-4-fade-in-out,
+        __react-md-spinner-animation__left-spin,
+        __react-md-spinner-animation__right-spin;
+}

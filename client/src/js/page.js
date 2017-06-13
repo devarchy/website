@@ -1,121 +1,208 @@
-import React from 'react';
-import assert from 'assert';
-import router from './router.js';
-import UserInfoSnippet from './components/snippets/userinfo';
-import TagListSnippet from './components/snippets/tag-list';
-import FooterSnippet from './components/snippets/footer';
-
 // - we need this for sever-side rendering
 // - it is the entry point for server-side rendering
 
+import React from 'react';
 
-const Section = (() => {
+import assert from 'assertion-soft';
+import assert_soft from 'assertion-soft';
+import Promise from 'bluebird';
 
-    const _component = Symbol();
-    const _element = Symbol();
-    const _fetch = Symbol();
-    const _also_show_when_fetching = Symbol();
-    const _get_page_head = Symbol();
+import router from './router.js';
+
+import Tag from './thing/tag';
+
+import TagListSnippet from './components/snippets/tag-list';
+import LogoSectionSnippet from './components/snippets/logo-section';
+import EraserSnippet from './components/snippets/eraser';
+
+Promise.longStackTraces();
+
+
+const Section = (() => { 
+
+    const _node_selector = Symbol();
+    const _get_component = Symbol();
 
     class Section {
-        constructor({name, node_id, component, element, fetch, also_show_when_fetching, server_side_render, get_page_head}) {
-            assert(node_id);
-            assert(component || element && fetch);
-            assert(!component || component.component);
+        constructor({name, node_selector, component, element, fetch, also_show_when_fetching, server_side_render}) {
+            assert(node_selector);
+            assert(component);
+            assert(component.component || component.element || component.constructor === Function);
             assert(server_side_render.constructor === Boolean);
             assert([Boolean, Function].includes(also_show_when_fetching.constructor));
-            this.node_id = node_id;
-            this.name = name;
-            this.server_side_render = server_side_render;
-            this[_component] = component;
-            this[_element] = element;
-            this[_fetch] = fetch;
-            this[_also_show_when_fetching] = also_show_when_fetching;
-            this[_get_page_head] = get_page_head;
+            this.section__name = name;
+            this.section__server_side_render = server_side_render;
+            this.section__also_show_when_fetching = also_show_when_fetching;
+            this[_node_selector] = node_selector;
+            this[_get_component] = function(args) {
+                if( component.constructor === Function ) {
+                    const ret = component(add_args(args));
+                    assert(ret.component || ret.element, ret);
+                    assert(!ret.component || ret.component.constructor!==Object, ret);
+                    return ret;
+                }
+                return component;
+            };
         }
-        element(pathname) {
-            const args = get_args(pathname);
+        section__node_selector(args) {
             return (
-                this[_element] ||
-                this[_component].element ||
-                React.createElement.bind(React, this[_component].component)
-            )(args);
+                this[_node_selector].constructor === String ? (
+                    this[_node_selector]
+                ) : (
+                    this[_node_selector](add_args(args))
+                )
+            );
         }
-        fetch(pathname) {
-            if( this[_fetch] || (this[_component]||{}).fetch ) {
-                const args = get_args(pathname);
-                return (this[_fetch] || this[_component].fetch)(args);
+        section__element(args) {
+            const component = this[_get_component](args);
+            assert(component.component || component.element, component);
+            assert(!component.component || component.component.constructor!==Object, component);
+            return (
+                component.element && component.element.bind(component) ||
+                React.createElement.bind(React, component.component)
+            )(add_args(args));
+        }
+        section__fetch(args) {
+            const component = this[_get_component](args);
+            if( !component.fetch ) {
+                return Promise.resolve();
             }
-            return Promise.resolve();
+            return component.fetch(add_args(args));
         }
-        also_show_when_fetching(pathname) {
-            if( [false, true].includes(this[_also_show_when_fetching]) ) {
-                return this[_also_show_when_fetching];
-            }
-            const args = get_args(pathname);
-            return this[_also_show_when_fetching](args);
-        }
-        get_page_head(pathname) {
-            const args = get_args(pathname);
-            if( !this[_get_page_head] ) {
+        section__get_page_head(args) {
+            const component = this[_get_component](args);
+            if( !component.get_page_head ) {
                 return null;
             }
-            return this[_get_page_head](args);
+            return component.get_page_head(add_args(args));
         }
     }
 
-    function get_args(pathname) {
-        assert(pathname.constructor===String);
-        const args = {route: router.route(pathname)};
-        assert(args.route.component);
-        assert(args.route.params);
-        return args;
+    function add_args({pathname, hostname, is_fetching_data}) {
+        assert_soft((hostname||{}).constructor===String);
+        assert_soft((pathname||{}).constructor===String);
+
+        const route = router.get_route(pathname);
+        assert_soft(route.component);
+        assert_soft(route.component.component || route.component.element);
+        assert(!route.component.component || route.component.component.constructor!==Object, route);
+        assert_soft(route.params);
+
+        const meta_data = get_meta_data(hostname);
+
+        return {route, pathname, is_fetching_data, meta_data};
     }
 
     return Section;
+})(); 
+
+const sections = (
+    [
+        new Section({
+            name: 'tag_list',
+            node_selector: '#js_tag_list',
+            component: TagListSnippet,
+            also_show_when_fetching: true,
+            server_side_render: true,
+        }),
+        new Section({
+            name: 'logo_section',
+            node_selector: '#js_logo_section_1',
+            component: LogoSectionSnippet,
+            also_show_when_fetching: true,
+            server_side_render: true,
+        }),
+        new Section({
+            name: 'logo_section_2',
+            node_selector: '#js_logo_section_2',
+            component: LogoSectionSnippet,
+            also_show_when_fetching: true,
+            server_side_render: true,
+        }),
+        /*
+        new Section({
+            name: 'logo_section',
+            node_selector: ({route: {component}}) => component.hide_sidebar ? '#js_logo_section_2' : '#js_logo_section_1',
+            component: LogoSectionSnippet,
+            also_show_when_fetching: true,
+            server_side_render: true,
+        }),
+        new Section({
+            name: 'logo_section_eraser',
+            node_selector: ({route: {component}}) => component.hide_sidebar ? '#js_logo_section_1' : '#js_logo_section_2',
+            component: EraserSnippet,
+            also_show_when_fetching: true,
+            server_side_render: true,
+        }),
+        */
+        new Section({
+            name: 'content',
+            node_selector: '.sel_main_view_content',
+            component: ({route: {component}}) => component,
+            server_side_render: true,
+            also_show_when_fetching: false,
+        }),
+    ]
+);
+
+const get_initial_fetch_promise = (() => {
+
+    let initial_fetch__promise;
+
+    return (
+        args => {
+            if( ! initial_fetch__promise ) {
+                initial_fetch__promise = initial_fetch(args);
+            }
+
+            return initial_fetch__promise;
+        }
+    );
+
+    function initial_fetch({hostname}) {
+        const meta_data = get_meta_data(hostname);
+        return (
+            Promise.all([
+                Tag.retrieve_meta_list({meta_data}),
+                LogoSectionSnippet.fetch(),
+            ])
+            .then(() => {})
+        );
+    }
 })();
 
-export default [
-    new Section({
-        name: 'userinfo',
-        node_id: 'js_userinfo',
-        component: UserInfoSnippet,
-        also_show_when_fetching: true,
-        server_side_render: false,
-    }),
-    new Section({
-        name: 'footer',
-        node_id: 'js_more',
-        component: FooterSnippet,
-        also_show_when_fetching: true,
-        server_side_render: true,
-    }),
-    new Section({
-        name: 'tag_list',
-        node_id: 'js_tag_list',
-        component: TagListSnippet,
-        also_show_when_fetching: false,
-        server_side_render: true,
-    }),
-    new Section({
-        name: 'content',
-        node_id: 'js_content',
-        element: function({route: {component}}) {
-            if( !component.element ) {
-                return React.createElement(component.component, null);
-            }
-            return component.element.apply(component, arguments);
-        },
-        fetch: function({route: {component}}) {
-            if( ! component.fetch ) {
-                return Promise.resolve();
-            }
-            return component.fetch.apply(component, arguments);
-        },
-        also_show_when_fetching: ({route: {component}}) => component.also_show_when_fetching,
-        get_page_head: function({route: {component}}) {
-            return component.get_page_head.apply(component, arguments);
-        },
-        server_side_render: true,
-    }),
-];
+function get_meta_data(hostname) {
+    assert_soft(hostname);
+
+    const sld = (hostname||'').split('.')[0];
+    assert_soft(sld);
+
+    const is_programming_stuff = (
+        // ['devarchy', 'localhost', ].includes(sld)
+        true
+    );
+
+    const is_dev = (
+        sld==='localhost'
+    );
+
+    return {
+        is_programming_stuff,
+        is_dev,
+    };
+}
+
+export default {
+    overall: {
+        get_initial_fetch_promise,
+        is_sidebar_hidden,
+    },
+    sections,
+};
+
+
+function is_sidebar_hidden(pathname) {
+    const route = router.get_route(pathname);
+    assert_soft(route.component);
+    return !!route.component.hide_sidebar;
+}

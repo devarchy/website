@@ -1,21 +1,34 @@
 {
   "name": "server",
   "script": "index.js",
-  "instances": 0,
+  "instances": 1,
   "exec_mode": "cluster",
+  "wait_ready": true,
+  "listen_timeout": 10000,
   "env": {
+    "kill_timeout": 0,
+    "node_args": ["--max_old_space_size=550"],
     "NODE_ENV": "development",
     "SERVER_DOWN": "",
-    "TIMERLOG": "0",
-    "watch": true
+    "TIMERLOG": "1",
+    "TIMERLOG_CLIENT": "0",
+    "TIMERLOG_DB_PROCESSING": "1",
+    "watch": true,
+    "max_memory_restart": "500000000"
   },
   "env_production" : {
+    "kill_timeout": 15000,
+    "node_args": ["--max_old_space_size=700"],
     "NODE_ENV": "production",
     "SERVER_DOWN": "",
-    "TIMERLOG": "1",
-    "watch": false
+    "TIMERLOG": "0",
+    "TIMERLOG_NEW_VISIT": "1",
+    "TIMERLOG_SLOWINESS_TRACKER": "1",
+    "TIMERLOG_DB_PROCESSING": "0",
+    "watch": false,
+    "max_memory_restart": "650000000"
   },
   "env_maintenance" : {
-     "SERVER_DOWN": "Devarchy is offline for an update. It will be back online in couple of minutes."
+     "SERVER_DOWN": "Devarchy is offline for an update. It will be back online in a moment."
   }
 }

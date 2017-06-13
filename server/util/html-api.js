@@ -241,6 +241,7 @@ function get_info({url, max_delay}) {
     let info = {
         html_title: null,
         html_description: null,
+        html_published_at: null,
         html_created_at: null,
     };
     return Promise.all([
@@ -250,7 +251,7 @@ function get_info({url, max_delay}) {
                 info = null;
                 return;
             }
-            info.html_created_at =
+            info.html_published_at =
                 get('meta.itemprop.datePublished', d => only_if_date(d.content));
 
             info.html_self_url =
@@ -338,7 +339,7 @@ function get_info({url, max_delay}) {
                 return;
             }
             assert(date.constructor===Date);
-            info.html_created_at = info.html_created_at || date;
+            info.html_created_at = date;
         })
         ,
     ])

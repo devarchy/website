@@ -1,295 +1,408 @@
-import assert from 'assert';
+import assert from 'assertion-soft';
+import assert_soft from 'assertion-soft';
 import validator from 'validator';
+import user_tracker from '../user_tracker';
 import {is_npm_package_name_valid} from '../util/npm_package_name_validation';
 import normalize_url from '../util/normalize_url';
+import pretty_print from '../util/pretty_print';
+import text_search from '../util/text_search';
 import clean_sentence from 'clean-sentence'
-import mixin from './mixin/mixin.decorator.js';
-import CommentableMixin from './mixin/commentable';
-import VotableMixin from './mixin/votable';
+import CommentableMixin from './mixins/commentable';
+import VotableMixin from './mixins/votable';
 import Thing from './thing.js';
 import Tag from './tag.js';
 import Promise from 'bluebird';
 Promise.longStackTraces();
 
-const map__github_full_name = {};
-const map__resource_url_normalized = {};
+//const cache__resources = {};
 
-@mixin(CommentableMixin)
-@mixin(VotableMixin)
-class Resource extends Thing {
+class Resource extends VotableMixin(CommentableMixin(Thing), {author_can_selfvote: true}) {
     constructor(...args) {
         super(...args);
-
-        assert( this.github_full_name || this.resource_url_normalized || !this.id && this.resource_url);
-
-        if( this.github_full_name ) {
-            assert( !this.id || this.github_info );
-            assert( !this.id || this.github_info.created_at );
-            map__github_full_name[this.github_full_name.toLowerCase()] = this;
-        }
-
-        if( this.resource_url_normalized ) {
-            map__resource_url_normalized[this.resource_url_normalized] = this;
-        }
     }
 
-    get resource_name() {
-        const name = (
-            this.npm_package_name ||
-         // this.resource_title ||
-            this.html_info.html_title ||
-            this.resource_url_normalized
-        );
-        assert(name);
-        return name;
-    }
-
-    get name() { 
-        assert(false);
+    get resource_name() { 
+        if( this.resource_is_website ) {
+            return (
+                this.crowded__name ||
+                (this.html_info||{}).html_title ||
+                this.resource_url_normalized ||
+                null
+            );
+        }
+        if( this.resource_is_git_repo ) {
+            return (
+                this.npm_package_name ||
+                this.resource_title ||
+                this.github_full_name
+            );
+        }
+        if( this.resource_is_list ) {
+            const res_tag = Tag.get_by_id(this.referred_tag);
+            assert_soft(res_tag);
+            /*
+            if( res_tag ) {
+                return res_tag.display_options.tag_title;
+            }
+            //*/
+            return (
+                (this.preview_tag||{}).name
+            );
+        }
+        assert_soft(false, this);
     } 
 
     get resource_desc() { 
-        let desc = (
-            (this.npm_info||{}).description ||
-            (this.github_info||{}).description ||
-         // this.resource_description ||
-            this.html_info.html_description
-        );
-        desc = clean_sentence(desc||'', {remove_emojis: true, remove_urls: true});
+        let desc = (() => {
+            if( this.resource_is_website ) {
+                return (
+                    this.crowded__description ||
+                    (this.html_info||{}).html_description ||
+                    'no description found'
+                );
+            }
+            if( this.resource_is_git_repo ) {
+                return (
+                    (this.github_info||{}).description ||
+                    (this.npm_info||{}).description ||
+                    'no description found'
+                );
+            }
+            if( this.resource_is_list ) {
+                const res_tag = Tag.get_by_id(this.referred_tag);
+                assert_soft(res_tag);
+                if( res_tag ) {
+                    return res_tag.display_options.tag_description__without_number;
+                }
+                return (
+                    (this.github_info||{}).description
+                )
+            }
+            assert_soft(false);
+        })();
+        assert_soft(desc, desc, this.resource_name);
+        desc = clean_sentence(desc||'', {remove_emojis: true, remove_urls: true, remove_text_emojis: false});
+        assert_soft(desc, desc, this.resource_name);
         return desc;
     } 
 
-    get description() { 
-        assert(false);
-    } 
-
-    add_tag (tag) { 
+    get resource_is_website() { 
         return (
-            set_tagged_removed_prop(this, tag, false)
+            !!this.resource_url ||
+            !!this.resource_url_normalized
         );
     } 
 
-    remove_tag (tag) { 
+    get resource_is_git_repo() { 
         return (
-            set_tagged_removed_prop(this, tag, true)
+            !!this.github_full_name
         );
     } 
 
-    get tags_all() { 
-        const tags =
+    get resource_is_list() { 
+        return (
+            !!this.referred_tag
+        );
+    } 
+
+    get show_description() { 
+        assert_soft([null, undefined, false, true].includes(this.crowded__show_description), this.crowded__show_description);
+        if( [false,true].includes(this.crowded__show_description) ) {
+            return this.crowded__show_description;
+        }
+        if( this.github_full_name ) {
+            return true;
+        }
+        if( (this.preview.reviewpoints||[]).length > 0 ) {
+            return false;
+        }
+        return true;
+    } 
+
+    get resource_desc_line() { 
+        const desc = this.show_description ? this.resource_desc : '';
+
+        const SPACER = ' \u00a0 ';
+
+        const rps = (() => {
+            const MINUS = '\u2013';
+         // const MINUS = '\u2212';
+            const PLUS = '+';
+
+            assert_soft((this.preview.reviewpoints||0).constructor === Array);
+            return (
+                (this.preview.reviewpoints||[])
+                .map(({text, is_negative}) => (is_negative?MINUS:PLUS)+' '+text)
+                .join(SPACER)
+            );
+
+        })();
+
+        if( ! rps ) {
+            return desc;
+        }
+        if( ! desc ) {
+            return '\u00a0 '+rps;
+        }
+        return desc + SPACER + rps;
+    } 
+
+    get published_at() { 
+        let date_str = (() => {
+            if( this.github_info ) {
+                const date_str = this.github_info.created_at;
+                assert_soft(date_str);
+                return date_str;
+            }
+            return (
+                this.crowded__published_at ||
+                (this.html_info||{}).html_published_at ||
+                (this.html_info||{}).html_created_at ||
+                null
+            );
+        })();
+        assert_soft(date_str===null || date_str);
+        if( !date_str ) {
+            return null;
+        }
+        date_str = new Date(date_str);
+        assert_soft(date_str != "Invalid Date");
+        if( date_str == "Invalid Date" ) {
+            return null;
+        }
+        return date_str;
+    } 
+
+    get number_of_points() { 
+        if( this.github_full_name || this.referred_tag ) {
+            const stars = (this.github_info||{}).stargazers_count;
+            assert_soft(Number.isInteger(stars));
+            assert_soft(stars>=0);
+            if( (stars||{}).constructor === Number ) {
+                return stars;
+            }
+        }
+        const upvotes = this.preview.number_of_upvotes;
+        assert_soft(Number.isInteger(upvotes));
+        assert_soft(upvotes>=0);
+        if( (upvotes||{}).constructor===Number ) {
+            return upvotes;
+        }
+        return 0;
+    } 
+
+    is_tagged_with(tag) { 
+        assert((tag||0).constructor === Tag);
+
+        if( this.preview.tags.includes(tag.name) ) {
+            return true;
+        }
+    } 
+
+    get_a_category(tag__catalog) { 
+        assert_soft(tag__catalog.is_catalog);
+
+        {
+            const req = this.get_request_info(tag__catalog.id);
+            if( req ) {
+                assert(req.tag__category.is_category);
+                return req.tag__category;
+            }
+        }
+
+        {
+            const tag_category = (
+                this.get_all_categories(tag__catalog)[0]
+            );
+            if( tag_category ) {
+                return tag_category;
+            }
+        }
+
+        assert_soft(false, "orphaned resource `"+this.resource_name+"`; "+JSON.stringify(this.preview));
+        return null;
+    } 
+
+    get_all_categories(tag_catalog) { 
+        assert_soft(tag_catalog.is_catalog);
+
+        return (
             this.preview.tags
-            .map(tagname => Tag.get_by_name(tagname));
-
-        assert(tags.every(t => !!t));
-        assert(tags.every(t => !t.is_markdown_category));
-        return tags;
+            .map(tag_name => Tag.get_by_name(tag_name, {can_be_null: true}))
+            .filter(Boolean)
+            .filter(tag => tag.is_category)
+            .filter(tag => !tag.is_removed)
+            .filter(tag => tag.referred_tag_markdown_list===tag_catalog.id)
+        );
     } 
 
-    get tagrequests() { 
+    get_request_info(tag__markdown_list__id) { 
+        assert_soft(tag__markdown_list__id);
+        for(const {req_tag_name, req_date, req_approved} of this.preview.tagreqs) {
+            assert_soft(req_tag_name);
+
+            assert([true, false, null].includes(req_approved));
+            if( req_approved===true ) {
+                continue;
+            }
+            const tag__category = Tag.get_by_name(req_tag_name, {can_be_null: true});
+            if( ! tag__category ) {
+                continue;
+            }
+            if( ! tag__category.referred_tag_markdown_list ) {
+                continue;
+            }
+            if( tag__category.referred_tag_markdown_list !== tag__markdown_list__id ) {
+                continue;
+            }
+
+            assert_soft(req_date || req_date===null, this.preview.tagreqs);
+            return {req_date, tag__category};
+        }
+        return null;
+    } 
+
+    get resource_human_id() { 
         return (
-            this.preview.tagreqs
-            .map(({tagname, category}) => {
-                const tag__markdown_list = Tag.get_by_name(tagname);
-                assert(tag__markdown_list, 'could not find a Thing.tag instance for `'+tagname+'`');
-                assert(tag__markdown_list.is_markdown_list);
-                const tag__category_id = Tag.category__get_global_id(category, tag__markdown_list.id);
-                const tag__category = Tag.get_by_name(tag__category_id) || null;
-                assert(tag__category===null || tag__category.is_markdown_category);
-                return {tag__category, tag__markdown_list};
+            Thing.generate_human_id(this.resource_name)
+        );
+    } 
+
+    get_missing_words(full_text_search_value, {per_text}={}) { 
+        return (
+            text_search.get_missing_words({
+                full_text_search_value,
+                texts: [
+                    this.resource_name,
+                    this.resource_desc,
+                ],
+                per_text,
             })
         );
     } 
 
-    get_category_request(tag) { 
-        assert(tag.is_markdown_list);
-        const categories = this.preview.tagreqs.filter(({tagname}) => tagname === tag.name);
-        assert(categories.length>0, tag.name+' not found in '+JSON.stringify(this.preview.tagreqs, null, 2));
-        assert(categories.length===1);
-        const category_id = categories[0].category;
-        const category_id_global = Tag.category__get_global_id(category_id, tag.id);
-        assert(category_id);
-        const category = Tag.get_by_name(category_id_global) || null;
-        assert(category===null || category.is_markdown_category);
-        return category;
-    } 
+    get insight() { 
+        const all = Thing.things.all;
+        const related_things = all.filter(t => t.referred_thing===this.id || t.referred_resource===this.id);
+        const taggedS = related_things.filter(t => t.type==='tagged');
+        if( ! assert_soft(taggedS.length>0, 'missing information; call me once all related things are loaded') ) return;
 
-    is_declined_in(tag) { 
-        assert(tag.is_markdown_list);
-        assert(tag.markdown_list__declined);
-        assert(tag.markdown_list__declined.constructor===Array);
-        return tag.markdown_list__declined.includes(this.npm_package_name);
-    } 
+        const info = {};
 
-    is_tagged_with(tag, options) { 
-        assert((tag||0).constructor === Tag);
-
-        for(const fct of [is_tagged_through_request, is_tagged_through_tagged_thing, is_tagged_through_markdown_list]) {
-            const val = fct.call(this, options);
-            if( val !== null) {
-                return val;
-            }
-        }
-
-        return false;
-
-        function is_tagged_through_request({awaiting_approval}={}) {
-            if( ! tag.is_markdown_category && !tag.is_markdown_list ) {
-                return null;
-            }
-            if( ! awaiting_approval ) {
-                return null;
-            }
-            assert(['INCLUDE', 'ONLY', 'EXCLUDE'].includes(awaiting_approval));
-            const is_awaiting_approval = this.is_awaiting_approval_for(tag);
-            if( awaiting_approval === 'ONLY' ) {
-                return is_awaiting_approval;
-            }
-            if( awaiting_approval === 'INCLUDE' && is_awaiting_approval ) {
-                return true;
-            }
-            if( awaiting_approval === 'EXCLUDE' && is_awaiting_approval ) {
-                return false;
-            }
-            return null;
-        }
-
-        function is_tagged_through_tagged_thing() {
-            if( this.preview.tags.includes(tag.name) ) {
-                return true;
-            }
-            return null;
-        }
-
-        function is_tagged_through_markdown_list() {
-            if( !tag.tagged_resources ) {
-                return null;
-            }
-
-            const is_in =
-                tag.tagged_resources.some(r =>
-                    matches_key(this, {
-                        github_full_name: (r.as_npm_catalog||{}).github_full_name,
-                        npm_package_name: (r.as_npm_catalog||{}).npm_package_name,
-                        resource_url_normalized: normalize_url((r.as_web_catalog||{}).resource_url),
-                    })
-                );
-            if( is_in ) {
-                return true;
-            } else {
-                return null;
-            }
-
-            function matches_key(resource, {github_full_name, npm_package_name, resource_url_normalized}) {
-                assert(github_full_name && npm_package_name || resource_url_normalized);
-                if( github_full_name && npm_package_name ) {
-                    assert(resource.github_full_name);
-                    assert(resource.npm_package_name);
-                    const github_full_name__match = resource.github_full_name.toLowerCase() === github_full_name.toLowerCase();
-                    const npm_package_name__match = resource.npm_package_name.toLowerCase() === npm_package_name.toLowerCase();
-                    const partial_match = github_full_name__match || npm_package_name__match;
-                    const complete_match = github_full_name__match && npm_package_name__match;
-                    return complete_match;
-                    /*
-                    assert(
-                        ! partial_match || complete_match,
-                        [
-                            resource.github_full_name.toLowerCase(),
-                            '!==',
-                            github_full_name.toLowerCase(),
-                            '||',
-                            resource.npm_package_name.toLowerCase(),
-                            '!==',
-                            npm_package_name.toLowerCase(),
-                        ].join(' ')
+        related_things
+        .forEach(t => {
+            const overloaded_idS = {};
+            [
+                'author',
+                'referred_resource',
+                'referred_tag',
+                'referred_thing',
+            ].forEach(ref_attr => {
+                const ref_id = t[ref_attr];
+                if( ref_id ) {
+                    overloaded_idS[ref_attr] = (
+                        filter_important(
+                            Thing.get_by_id(ref_id),
+                            {minimal: true}
+                        )
                     );
-                    return partial_match;
-                    */
                 }
+                return ref_id;
+            });
+            const t__info = (
+                Object.assign(
+                    {},
+                    filter_important(t),
+                    overloaded_idS
+                )
+            );
+            info[t.type] = info[t.type] || [];
+            info[t.type].push(t__info);
+        });
 
-                if( resource_url_normalized ) {
-                    return resource.resource_url_normalized === resource_url_normalized;
-                }
+        return info;
 
-                assert(false);
+        function filter_important(thing, {minimal}={}) {
+            const important_info = {};
+         // important_info.type = thing.type;
+            if( important_info.is_removed ) {
+                important_info.is_removed = important_info.is_removed;
             }
+            if( thing.type==='resource' ) {
+                important_info.npm_package_name = thing.npm_package_name;
+                if( !minimal ) {
+                    important_info.computed_at = (
+                        pretty_print.age(thing.computed_at, {verbose: true})
+                    );
+                }
+            }
+            if( thing.type==='genericvote' ) {
+                if( important_info.votetype!=='upvote' ) {
+                    important_info.votetype = important_info.votetype;
+                }
+                if( important_info.is_negative ) {
+                    important_info.is_negative = important_info.is_negative;
+                }
+            }
+            if( thing.type==='user' ) {
+                important_info.github_login = thing.github_login;
+            }
+            if( thing.type==='tag' ) {
+                if( thing.is_category ) {
+                    important_info.category__title = thing.category__title;
+                }
+                if( thing.is_catalog ) {
+                    important_info.name = thing.name;
+                }
+            }
+            if( minimal && Object.keys(important_info).length===1 ) {
+             // const single_value = Object.entries(important_info).filter(([key]) => key!=='type')[0][1];
+                const single_value = Object.values(important_info)[0];
+                return single_value;
+            }
+            important_info.created_at = (
+                pretty_print.age(thing.created_at, {verbose: true})
+            );
+            return important_info;
         }
-
     } 
 
-    is_awaiting_approval_for(tag) { 
-        assert(tag);
-        assert(tag.constructor === Tag);
-        assert(tag.is_markdown_category || tag.is_markdown_list);
-        return this.preview.tagreqs.find(tr => tag.is_markdown_list ? tr.tagname === tag.name : tr.category === tag.category_id);
+    static retrieve_view ({resource_id}) { 
+        assert(resource_id);
+        return Thing.load.view({things: [{id: resource_id}], show_removed_things: true});
     } 
 
-    get logged_user_is_owner() { 
-        const repo = this.github_full_name.split('/');
-        assert(repo.length===2);
-        const repo_owner = repo[0];
-        if( ! Thing.things.logged_user ) {
-            return false;
-        }
-        return Thing.things.logged_user.github_login.toLowerCase() === repo_owner.toLowerCase();
-    } 
+    static list_things ({age_min = 0, age_max = Infinity, age_missing = false, tags = [], order, list}={}) { 
 
-    static retrieve_view ({github_full_name, resource_url_normalized}) { 
-        assert(github_full_name || resource_url_normalized);
-        const info = {
-            type: 'resource',
-            github_full_name,
-            resource_url_normalized,
-        };
-        return Thing.load.view([info]);
-    } 
-
-    static get_by_github_full_name (github_full_name) { 
-        assert(github_full_name);
-        return map__github_full_name[github_full_name.toLowerCase()];
-    } 
-
-    static get_by_resource_url_normalized (resource_url_normalized) { 
-        assert(resource_url_normalized);
-        return map__resource_url_normalized[resource_url_normalized];
-    } 
-
-    static get_by_resource_url (resource_url) { 
-        assert(resource_url);
-        return this.get_by_resource_url_normalized(normalize_url(resource_url));
-    } 
-
-    static retrieve_by_github_full_name (github_full_name) { 
-        assert(github_full_name);
-        return super.retrieve_by_props({github_full_name});
-    } 
-
-    static list_things ({age_min = 0, age_max = Infinity, tags = [], order, list, awaiting_approval, include_declined = false}={}) { 
+        assert_soft(age_missing===false || age_min===0 && age_max === Infinity);
 
         return super.list_things({
             order,
             list,
             filter_function: resources => {
+                if( age_missing ) {
+                    resources = resources.filter(resource => resource.published_at === null);
+                }
                 if( age_min !== 0 || age_max !== Infinity ) {
                     resources = resources.filter( resource => {
+                        const published_at = resource.published_at;
+                        if( published_at === null ) {
+                            return false;
+                        }
                         const ONE_DAY = 24*60*60*1000;
                         const TODAY = new Date();
-                        const created_at = new Date(resource.github_info.created_at);
                         const limit_upper = TODAY - age_min*ONE_DAY;
                         const limit_lower = TODAY - age_max*ONE_DAY;
-                        return limit_lower <= created_at && created_at <= limit_upper;
+                        return limit_lower <= published_at && published_at <= limit_upper;
                     });
                 }
 
                 if( tags.length !== 0 ) {
                     assert(tags.every(tag => tag && tag.constructor === Tag));
-
-                    resources = resources.filter(thing__resource =>
-                        tags.every(tag => {
-                            return (
-                                include_declined || !thing__resource.is_declined_in(tag) &&
-                                thing__resource.is_tagged_with(tag, {awaiting_approval})
-                            );
-                        })
+                    resources = (
+                        resources.filter(thing__resource =>
+                            tags.every(tag => thing__resource.is_tagged_with(tag))
+                        )
                     );
                 }
 
@@ -299,10 +412,12 @@ class Resource extends Thing {
 
     } 
 
+    /*
     static retrieve_things__by_tag({tag_name}) { 
         assert(tag_name);
         return super.retrieve_things({preview: {tags: [tag_name]}});
     } 
+    */
 
     static order({newest, latest_requests}) { 
         if( latest_requests ) {
@@ -316,62 +431,227 @@ class Resource extends Thing {
             return {
                 sort_function: (thing1, thing2) => {
                     return (
-                        new Date((thing2.github_info||{}).created_at) - new Date((thing1.github_info||{}).created_at) ||
-                        (thing2.github_info||{}).stargazers_count - (thing1.github_info||{}).stargazers_count ||
+                        thing2.published_at - thing1.published_at ||
+                        thing2.number_of_points - thing1.number_of_points ||
                         0
                     );
                 }
             };
             // equivalent but less efficient:
-            // return ['github_info.created_at', 'github_info.stargazers_count', ];
+            // return ['published_at', 'number_of_points', ];
         }
         return {
             sort_function: (thing1, thing2) => {
                 return (
-                    (thing2.github_info||{}).stargazers_count - (thing1.github_info||{}).stargazers_count ||
-                    new Date((thing2.github_info||{}).created_at) - new Date((thing1.github_info||{}).created_at) ||
+                    thing2.number_of_points - thing1.number_of_points ||
+                    thing2.published_at - thing1.published_at ||
                     0
                 );
             }
         };
         // equivalent but less efficient:
-        // return ['github_info.stargazers_count', 'github_info.created_at', ];
+        // return ['number_of_points', 'published_at', ];
     } 
 
-    static add_to_markdown_list({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description, tag__markdown_list, tag__category}) { 
-        if( ! tag__category ) {
-            return Promise.reject(new Error('Choose a category to add the resource to'));
+    static add_to_platform({resource_info: {github_full_name, npm_package_name, resource_url}, is_npm_entry, tags=null}) { 
+        assert( tags===null || tags.every(tag => tag.constructor === Tag) );
+        assert( Thing.things.logged_user.id );
+
+        const validation_errors = (() => { 
+            let validation_errors = null;
+            if( is_npm_entry ) {
+                if( ! github_full_name ) {
+                    validation_errors = validation_errors || {};
+                    validation_errors.github_full_name = validation_errors.github_full_name || {};
+                    validation_errors.github_full_name.is_missing = true;
+                }
+                else if( github_full_name.split('/').length !== 2 ) {
+                    validation_errors = validation_errors || {};
+                    validation_errors.github_full_name = validation_errors.github_full_name || {};
+                    validation_errors.github_full_name.is_malformatted = true;
+                }
+                if( ! npm_package_name ) {
+                    validation_errors = validation_errors || {};
+                    validation_errors.npm_package_name = validation_errors.npm_package_name || {};
+                    validation_errors.npm_package_name.is_missing = true;
+                }
+                else if( ! is_npm_package_name_valid(npm_package_name) ) {
+                    validation_errors = validation_errors || {};
+                    validation_errors.npm_package_name = validation_errors.npm_package_name || {};
+                    validation_errors.npm_package_name.is_malformatted = true;
+                }
+            }
+            else {
+                if( ! resource_url ) {
+                    validation_errors = validation_errors || {};
+                    validation_errors.resource_url = validation_errors.resource_url || {};
+                    validation_errors.resource_url.is_missing = true;
+                }
+            }
+
+            return validation_errors;
+        })(); 
+
+        if( validation_errors ) {
+            const err = new Error('Validation Error(s)');
+            err.validation_errors = validation_errors;
+            return Promise.reject(err);
         }
-        assert( tag__markdown_list && tag__markdown_list.is_markdown_list );
-        assert( tag__category.is_markdown_category );
-        assert( tag__category.id && tag__category.id === tag__category.name );
+
+        const thing_info = {
+            type: 'resource',
+            author: Thing.things.logged_user.id,
+        };
+
+        if( is_npm_entry ) {
+            Object.assign(thing_info, {
+                github_full_name,
+                npm_package_name,
+            });
+        }
+        else {
+            Object.assign(thing_info, {
+                resource_url,
+            });
+        }
 
         return (
-            add_to_platform({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description})
+            (
+                new Thing(thing_info).draft.save()
+            )
+            .then(resp => {
+                assert(resp.constructor===Object);
+                assert(resp.things_matched);
+                const resource = resp.things_matched[0];
+                assert(resource);
+                assert(resource.constructor === Resource);
+                return resource;
+            })
+        );
+    } 
+
+    alter_categories({tag_catalog, tag_category, categories_to_remove}) {
+        if( ! assert_soft((tag_category||{}).is_category) ) return;
+        if( ! assert_soft((tag_catalog||{}).is_catalog) ) return;
+
+        const author = Thing.things.logged_user.id;
+
+        const referred_resource = this.id;
+
+        return (
+            Promise.all([
+                (() => {
+                    const referred_tag = tag_category.id;
+                    if( ! assert_soft(referred_tag) ) return;
+
+                    const request_date = (() => {
+                        const current_request = this.get_request_info(tag_category.referred_tag_markdown_list);
+                        return (current_request||{}).req_date || new Date();
+                    })();
+
+                    return (
+                        new Thing({
+                            type: 'tagged',
+                            referred_resource,
+                            referred_tag,
+                            is_removed: false,
+                            author,
+                            request_date,
+                        }).draft.save()
+                    );
+                })(),
+                ...categories_to_remove.map(tc => {
+                    if( ! assert_soft((tc||{}).is_category) ) return;
+                    const referred_tag = tc.id;
+                    if( ! assert_soft(referred_tag) ) return;
+                    return (
+                        new Thing({
+                            type: 'tagged',
+                            referred_resource,
+                            referred_tag,
+                            is_removed: true,
+                            author,
+                        }).draft.save()
+                    );
+                })
+            ])
+        );
+    }
+
+    static add_to_markdown_list({resource_info: {github_full_name, npm_package_name, resource_url}, is_npm_entry, tag_catalog, tag_category}) { 
+        if( ! tag_category ) {
+            return Promise.reject(new Error('Choose a category to add the resource to'));
+        }
+        assert( tag_catalog.is_catalog );
+        assert( tag_category.is_category );
+        assert( tag_category.id );
+        assert( tag_category.referred_tag_markdown_list === tag_catalog.id );
+
+        return (
+            this.add_to_platform({resource_info: {github_full_name, npm_package_name, resource_url} , is_npm_entry})
         )
         .then(resource => {
             assert( resource && resource.constructor === Resource );
-            return Promise.all([
-                new Thing({
-                    type: 'tagged',
-                    referred_resource: resource.id,
-                    referred_tag: tag__markdown_list.id,
-                    tagrequest: tag__category.category_id,
-                    removed: false,
-                    draft: {
-                        author: Thing.things.logged_user.id,
-                    },
-                }).draft.save(),
-                new Thing({
-                    type: 'genericvote',
-                    vote_type: 'upvote',
-                    referred_thing: resource.id,
-                    author: Thing.things.logged_user.id,
-                    draft: {},
-                }).draft.save(),
-            ]);
+
+            const author = Thing.things.logged_user.id;
+
+            const current_request = resource.get_request_info(tag_category.referred_tag_markdown_list);
+
+            const current_category_id = ((current_request||{}).tag_category||{}).id;
+            assert_soft(current_request===null || current_category_id);
+
+            const request_date = (() => {
+                // If the resource is already in the category then it's not a request.
+                // Adding a resource to a category it's already in is a way to update its `npm_package_name` or `github_full_name`.
+                if( resource.is_tagged_with(tag_category) ) {
+                    return null;
+                }
+                return (current_request||{}).req_date || new Date();
+            })();
+
+            const referred_resource = resource.id;
+            const referred_tag = tag_category.id;
+
+            return (
+                Promise.all([
+                    (
+                        new Thing((() => {
+                            const info = {
+                                type: 'tagged',
+                                referred_resource,
+                                referred_tag,
+                                is_removed: false,
+                                author,
+                            };
+                            if( request_date ) {
+                                info.request_date = request_date;
+                            }
+                            return info;
+                        })()).draft.save()
+                    ),
+                    current_category_id && current_category_id !== referred_tag && (
+                        new Thing({
+                            type: 'tagged',
+                            referred_resource,
+                            referred_tag: current_category_id,
+                            is_removed: true,
+                            author,
+                        }).draft.save()
+                    ),
+                ])
+            );
         })
-        .then(() => {});
+        .then(() => {
+            user_tracker.log_event({
+                category: 'entry added',
+                action: tag_catalog.name,
+                additional_info: {
+                    github_full_name,
+                    npm_package_name,
+                    in_category: tag_category.category__title,
+                },
+            });
+        });
     } 
 
     static get result_fields() { 
@@ -387,12 +667,31 @@ class Resource extends Thing {
             'npm_info.description',
             'html_info.html_title',
             'html_info.html_description',
-            'resource_url_normalized',
+            'html_info.html_created_at',
+            'html_info.html_published_at',
             'resource_title',
-            'resource_description',
+            'crowded__name',
+            'crowded__description',
+            'crowded__show_description',
+            'crowded__published_at',
+            'resource_url',
+            'resource_url_normalized',
+            'referred_tag',
             'created_at',
             'preview',
+            'preview_tag',
         ]);
+    } 
+
+    static get_resource_by_name({tag_name, resource_human_id}) { 
+        assert_soft(tag_name);
+        assert_soft(resource_human_id);
+        const tag = Tag.get_by_name(tag_name, {can_be_null: true});
+        if( !tag ) {
+            return {};
+        }
+        const resource = tag.get_resource_by_human_id({resource_human_id});
+        return {resource, tag};
     } 
 };
 
@@ -400,93 +699,3 @@ Resource.type = 'resource'; // UglifyJS2 mangles class name
 export default Resource;
 
 
-function set_tagged_removed_prop(resource, tag, value) { 
-    assert(tag && tag.constructor === Tag && tag.id && validator.isUUID(tag.id));
-    assert(resource && resource.constructor === Resource && resource.id && validator.isUUID(resource.id));
-    assert((Thing.things.logged_user||{}).id);
-
-    return new Thing({
-        type: 'tagged',
-        referred_tag: tag.id,
-        referred_resource: resource.id,
-        removed: value,
-        author: Thing.things.logged_user.id,
-        draft: {},
-    }).draft.save();
-} 
-
-function add_to_platform({github_full_name, npm_package_name, is_npm_entry, resource_url, resource_title, resource_description, tags=null}) { 
-    assert( tags===null || tags.every(tag => tag.constructor === Tag) );
-    assert( Thing.things.logged_user.id );
-
-    const validation_errors = (() => { 
-        let validation_errors = null;
-        if( is_npm_entry ) {
-            if( ! github_full_name ) {
-                validation_errors = validation_errors || {};
-                validation_errors.github_full_name = validation_errors.github_full_name || {};
-                validation_errors.github_full_name.is_missing = true;
-            }
-            else if( github_full_name.split('/').length !== 2 ) {
-                validation_errors = validation_errors || {};
-                validation_errors.github_full_name = validation_errors.github_full_name || {};
-                validation_errors.github_full_name.is_malformatted = true;
-            }
-            if( ! npm_package_name ) {
-                validation_errors = validation_errors || {};
-                validation_errors.npm_package_name = validation_errors.npm_package_name || {};
-                validation_errors.npm_package_name.is_missing = true;
-            }
-            else if( ! is_npm_package_name_valid(npm_package_name) ) {
-                validation_errors = validation_errors || {};
-                validation_errors.npm_package_name = validation_errors.npm_package_name || {};
-                validation_errors.npm_package_name.is_malformatted = true;
-            }
-        }
-        else {
-            if( ! resource_url ) {
-                validation_errors = validation_errors || {};
-                validation_errors.resource_url = validation_errors.resource_url || {};
-                validation_errors.resource_url.is_missing = true;
-            }
-        }
-
-        return validation_errors;
-    })(); 
-
-    if( validation_errors ) {
-        const err = new Error('Validation Error(s)');
-        err.validation_errors = validation_errors;
-        return Promise.reject(err);
-    }
-
-    const thing_info = {
-        type: 'resource',
-        draft: {
-            author: Thing.things.logged_user.id,
-        },
-    };
-
-    if( is_npm_entry ) {
-        Object.assign(thing_info, {
-            github_full_name,
-            npm_package_name,
-        });
-    }
-    else {
-        Object.assign(thing_info, {
-            resource_url,
-            resource_title,
-            resource_description,
-        });
-    }
-
-    return (
-        new Thing(thing_info).draft.save()
-    )
-    .then(([resource]) => {
-        assert(resource);
-        assert(resource.constructor === Resource);
-        return resource;
-    })
-} 

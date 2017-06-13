@@ -1,29 +1,5 @@
 html.css_da {
     & * {
-        outline: 0;
         box-sizing: border-box;
-    }
-
-    & img {
-        vertical-align: middle;
-    }
-
-    & label {
-        cursor: pointer;
-    }
-    & [disabled] label {
-        cursor: default;
-    }
-
-    & a {
-        &, &:hover, &:focus {
-            color: inherit;
-            text-decoration: none;
-        }
-    }
-
-    [disabled],
-    [disabled] * {
-        cursor: default !important;
     }
 }

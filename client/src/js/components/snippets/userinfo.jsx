@@ -1,39 +1,34 @@
 import React from 'react';
-import assert from 'assert';
+import assert from 'assertion-soft';
+import Promise from 'bluebird';
 import Thing from '../../thing';
 
 import AuthPage from '../pages/auth';
 import UserSnippet from '../snippets/user';
-import LinkMixin from '../mixins/link';
+import {BigButtonSnippet} from '../snippets/button';
 
 import GoMarkGithub from 'react-icons/lib/go/mark-github';
+Promise.longStackTraces();
 
 
 const LoginButton = () =>
-    <LinkMixin.component
-      to={AuthPage.route.interpolate()}
-      className="css_da"
+    <BigButtonSnippet
+      link={AuthPage.page_route_spec.interpolate_path()}
+      style={{backgroundColor: 'rgba(0,0,0, 0.02)', paddingTop: 3, paddingBottom: 1, paddingLeft: 10, paddingRight: 9, marginBottom: 4}}
     >
-        <button className="css_da css_primary_button css_login_button">
-            <span
-              style={{fontSize: '0.95rem', wordSpacing: '1px'}}
-              className="css_color_contrib_dark"
-            >
-                <GoMarkGithub
-                  style={{color: '#6d6d6d', fontSize: '1.45em', verticalAlign: 'middle', position: 'relative', top: -1, paddingRight: 3}}
-                />
-                {' '}
-                Login with
-                GitHub
-            </span>
-        </button>
-    </LinkMixin.component>;
+        <span
+          style={{fontSize: '0.95rem', wordSpacing: '1px', color: '#666'}}
+        >
+            Login
+        </span>
+    </BigButtonSnippet>
 
 const UserinfoSnippet = React.createClass({
     render: function(){
         const logged_user = Thing.things.logged_user;
 
-        if( is_loading === true ) {
+        // we need this because we render the logo section while fetching
+        if( this.props.is_fetching_data ) {
             return null;
         }
 
@@ -47,17 +42,15 @@ const UserinfoSnippet = React.createClass({
     }
 });
 
-let is_loading = false;
-
 export default {
     component: UserinfoSnippet,
     fetch: () => {
-        assert(!is_loading);
-        is_loading = true;
+        if( typeof window === "undefined" ) {
+            return Promise.resolve();
+        }
         return (
             Thing.load.logged_user()
-        ).then(() => {
-            is_loading = false
-        });
+            .then(() => {})
+        );
     },
 };

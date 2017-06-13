@@ -1,0 +1,38 @@
+.css_sidebar_content {
+    position: relative;
+}
+.css_sidebar_loading_icon {
+    pointer-events: none;
+    position: absolute;
+    left: calc(50% - 12px);
+    top: 129px;
+}
+
+.css_sidebar_loading_icon {
+    opacity: 0;
+    transition: opacity 0.9s;
+    will-change: opacity;
+    /*
+    transform: translateZ(0);
+    */
+    @nest .css_sidebar_loading & {
+        opacity: 1;
+    }
+}
+.css_tag_list_content {
+    opacity: 1;
+    transition: opacity 0.9s;
+    will-change: opacity, pointer-events;
+    /*
+    transform: translateZ(0);
+    */
+    @nest .css_sidebar_loading & {
+        pointer-events: none;
+        opacity: 0.3;
+    }
+}
+
+/* required for react-scroll */
+#sel_scroll_area {
+    position: relative;
+}

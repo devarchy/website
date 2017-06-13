@@ -1,9 +1,7 @@
-.reply-list > .reply-list__body {
-    margin-bottom: 10px;
-
+.css_reply_layout_body {
     padding-left: 22px;
-    position: relative;
 
+    position: relative;
     /* line to communicate reply list */
     &::before {
         /*

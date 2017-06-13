@@ -1,11 +1,10 @@
 @import './layout.css';
-@import './header.css';
-@import './footer.css';
+@import './scroll.css';
+@import './sidebar.css';
 @import './reset.css';
 @import './colors.css';
 @import './text.css';
 @import './style.css';
 @import './loading.css';
 @import './form.css';
-@import './button.css';
 @import './tag.css';

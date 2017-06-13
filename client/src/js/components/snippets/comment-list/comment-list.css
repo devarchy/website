@@ -1,5 +1,6 @@
-.user-text.comment {
-    & .reply-list__header {
-        font-size: 90%;
-    }
+.css_comment + .css_comment,
+.css_comment_replies {
+    /*
+    padding-top: 4px;
+    */
 }

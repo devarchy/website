@@ -1,0 +1,111 @@
+@import '../../../../css/icons.vars.css';
+
+:root {
+  --css_button_transition_duration: 2s;
+  --css_button_transition_duration__fast: 0.4s;
+}
+
+.css_button_text,
+.css_button_icon,
+.css_button_big {
+    cursor: pointer;
+    user-select: none;
+}
+
+.css_button_text,
+.css_button_icon {
+    transition-property: color;
+    transition-duration: var(--css_button_transition_duration);
+}
+
+
+
+.css_button_icon {
+    display: inline-block;
+}
+.css_button_icon__icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
+
+  font-size: 1.18em;
+  width: 1.94em;
+  height: 1.94em;
+
+  color: #888;
+
+  @nest .css_button_icon.css_is_pressed & {
+      background-color: #f9f9f9;
+  }
+
+  border-radius: 50%;
+  border-width: 1px;
+  border-style: solid;
+  transition-property: border-color, color;
+  transition-duration: var(--css_button_transition_duration);
+  @nest .css_button_icon:not(.css_is_pressed) & {
+      border-color: #888;
+  }
+}
+
+
+.css_button_text {
+    & svg {
+        color: #888;
+    }
+}
+
+
+
+.css_button_big {
+    &, & > span {
+        display: inline-block;
+    }
+    padding: 6px 10px;
+    text-transform: uppercase;
+    font-size: .8em;
+    border-radius: 2px;
+    background-clip: padding-box;
+    letter-spacing: 1px;
+    border: 1px solid rgba(0,0,0, 0.08);
+    transition-property: color;
+}
+
+
+
+.css_saving *,
+.css_saving,
+[disabled],
+[disabled] * {
+    &.css_button_text,
+    &.css_button_icon {
+        cursor: default;
+        transition-duration: var(--css_button_transition_duration__fast);
+    }
+    &.css_button_text {
+        color: #ccc;
+    }
+    &.css_button_icon {
+        color: #888;
+        & .css_button_icon__icon {
+            color: #ddd;
+            border-color: #ddd !important;
+            transition-duration: var(--css_button_transition_duration__fast);
+        }
+    }
+}
+
+
+
+.css_saving .css_button_icon.css_is_async .css_button_icon__icon svg {
+    color: transparent;
+}
+.css_saving [type="submit"],
+.css_saving .css_is_async,
+.css_saving {
+    &.css_button_text,
+    &.css_button_icon .css_button_icon__icon {
+            @apply --css_loading_icon__middle;
+    }
+}

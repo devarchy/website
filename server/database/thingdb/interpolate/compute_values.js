@@ -6,15 +6,17 @@ const Promise_serial = require('promise-serial');
 module.exports = compute_values;
 
 
-function compute_values(thing, {Thing, transaction, only_sync, required_props_may_be_missing}) {
+function compute_values(thing, {Thing, transaction, only_sync, required_props_may_be_missing, schema__props__ordered, schema__args}) {
     assert( Thing );
     assert( Thing.database );
     assert( Thing.SchemaError );
 
     assert(!!((transaction||{}).rid) !== !!only_sync);
 
+    assert(schema__args && schema__args.constructor===Object);
+
     const props_to_compute =
-        thing.schema_ordered
+        schema__props__ordered
         .filter(prop_spec => {
             assert( prop_spec.property );
 
@@ -43,7 +45,7 @@ function compute_values(thing, {Thing, transaction, only_sync, required_props_ma
 
     return Promise_serial(
         props_to_compute.map(prop_spec => () => {
-                const promise = compute({prop_spec, transaction});
+                const promise = compute({prop_spec});
 
                 validate_returned_obj(prop_spec, promise);
 
@@ -85,7 +87,7 @@ function compute_values(thing, {Thing, transaction, only_sync, required_props_ma
         }
     }
 
-    function compute({prop_spec, transaction}) {
+    function compute({prop_spec}) {
         if( required_props_may_be_missing ) {
             try {
                 return doit();
@@ -97,7 +99,7 @@ function compute_values(thing, {Thing, transaction, only_sync, required_props_ma
         return doit();
 
         function doit() {
-            return prop_spec.value(Object.assign({}, thing, thing.draft), {Thing, transaction});
+            return prop_spec.value(Object.assign({}, thing, thing.draft), {Thing, transaction, schema__args});
         }
     }
 }

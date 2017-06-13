@@ -3,7 +3,7 @@ const assert = require('better-assert');
 const validator = require('validator');
 
 
-module.exports = (thing, {Thing, transaction}) => {
+module.exports = (thing, {Thing, transaction, schema__props_spec, schema__options}) => {
     assert( Thing );
     assert( Thing.database );
     assert( thing.id && validator.isUUID(thing.id) );
@@ -20,8 +20,8 @@ module.exports = (thing, {Thing, transaction}) => {
     })
 
     function add_props() {
-        for(let prop in thing.schema) {
-            let prop_spec = thing.schema[prop];
+        for(let prop in schema__props_spec) {
+            let prop_spec = schema__props_spec[prop];
             if( prop_spec.add_to_view ) {
                 assert( prop_spec.is_required );
                 let prop_value = thing[prop];
@@ -35,7 +35,7 @@ module.exports = (thing, {Thing, transaction}) => {
 
     function add_referred() {
         return Promise.all(
-            ((thing.schema._options||{}).additional_views||[])
+            (schema__options.additional_views||[])
             .map(fct => fct(thing, {Thing, transaction}))
         )
         .then(views_addendums => {

@@ -1,3 +1,4 @@
+import CollapseMixin from '../../mixins/collapse';
 import React from 'react';
 
 var ReplyLayoutMixin = React.createClass({
@@ -6,15 +7,34 @@ var ReplyLayoutMixin = React.createClass({
         const elems = get_elems( this.props.children, this );
 
         const className = [
-            "reply-list",
             this.state.expanded && "expanded",
             this.props.className,
         ].filter(c => c).join(" ");
 
-        return <div className={className}>
-            { elems.Header }
-            { this.state.expanded && <div className="reply-list__body">{elems._rest}</div> }
-        </div>;
+        const is_collapsible = !!this.props.collapse;
+
+        return (
+            <div className={className}>
+                { elems.Header }
+                { render_body.call(this) }
+            </div>
+        );
+
+        function render_body() {
+            const body = <div className="css_reply_layout_body">{elems._rest}</div>;
+            const expanded = this.state.expanded;
+            if( ! is_collapsible ) {
+                if( ! expanded ) {
+                    return null;
+                }
+                return body;
+            }
+            return (
+                <CollapseMixin.component isOpened={expanded}>
+                    {body}
+                </CollapseMixin.component>
+            );
+        }
     },
     getInitialState: function(){
         return {expanded: !this.props.collapse};
@@ -30,24 +50,38 @@ const mixin_spec = {
         {
             name: 'Header',
             render: function(elem) {
-                return <div className="reply-list__header">
-                    {
-                        elem.props.children.map((child, i) =>
-                            !this.props.collapse || !child.props.expand_toggle ?
-                                child :
-                                <span key={i} style={{cursor: 'pointer'}} onClick={this.toggle_expand}>
-                                    {child}
-                                </span>
-                        )
-                    }
-                </div>;
+                const children = elem.props.children.filter(child => child);
+                const is_collapsible = !!this.props.collapse;
+                const toggle_props = {};
+                if( ! this.props.freeze ) {
+                    Object.assign( toggle_props, {
+                        style: {cursor: 'pointer'},
+                        onClick: this.toggle_expand,
+                    });
+                }
+                const has_no_expand_toggle = children.every(child => child.props.expand_toggle===undefined);
+                return (
+                    <div
+                      {...(is_collapsible && has_no_expand_toggle ? toggle_props : {})}
+                    >
+                        {
+                            children.map((child, i) =>
+                                !(is_collapsible && child.props.expand_toggle) ?
+                                    child :
+                                    <span key={i} {...toggle_props}>
+                                        {child}
+                                    </span>
+                            )
+                        }
+                    </div>
+                );
             },
         },
         {
             name: 'Replies',
             multiple: true,
             optional: true,
-            render: elem => <div className="reply-list__replies" key={elem.props.wrapper_key}>
+            render: elem => <div key={elem.props.wrapper_key} className={elem.props.className}>
                 {elem}
             </div>,
         },

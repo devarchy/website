@@ -1,11 +1,18 @@
-const env = {};
-
+// `/.env/` is in `.gitignore`, therefore the env variables can be dropped there
+const env = require('../../.env');
+/*
+let env = {};
 try {
-    // `/.env/` is in `.gitignore`, therefore the env variables can be dropped there
-    require('../../.env');
+    env = require('../../.env');
 }catch(err){
     if( err.code !== 'MODULE_NOT_FOUND' ) throw err;
 }
+*/
+
+Object.keys(env)
+.forEach(key => {
+    env[key] = process.env[key] || env[key];
+});
 
 [
     'POSTGRES_PASSWORD',
@@ -14,10 +21,8 @@ try {
     'GITHUB_CLIENT_ID',
     'GITHUB_CLIENT_SECRET',
 ]
-.forEach(env_var => {
-    const val = process.env[env_var];
-    if( ! val ) throw new Error("Environment variable `"+env_var+"` missing");
-    env[env_var] = val;
-})
+.forEach(key => {
+    if( ! env[key] ) throw new Error("Environment variable `"+key+"` missing");
+});
 
 module.exports = env;

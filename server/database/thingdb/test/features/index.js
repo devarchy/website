@@ -1,2 +1,14 @@
+require('./tests/core');
+require('./tests/validation');
 require('./tests/uniqueness');
+require('./tests/computed_props');
 require('./tests/upsert');
+require('./tests/subtypes');
+require('./tests/cascading_save');
+require('./tests/views');
+require('./tests/relations');
+require('./tests/loading');
+require('./tests/details');
+require('./tests/misc');
+require('./tests/concurrency');
+require('./tests/migrations');

@@ -1,0 +1,62 @@
+.css_icon_plus, .css_icon_cross {
+    vertical-align: middle;
+    transition: transform 0.3s, right 0.3s;
+    height: 1em;
+    width: 1em;
+    display: inline-flex;
+    align-items: center;
+    align-content: center;
+    justify-content: center;
+
+    &::before {
+        content: "+";
+        font-size: 1.5em;
+    }
+    position: relative;
+    right: 0;
+}
+.css_icon_cross {
+    transform: rotate(45deg);
+    right: -1px;
+}
+
+
+.css_icon_minus {
+    font-size: 1.5em;
+    line-height: 0;
+    margin-top: -3px;
+    display: inline-block;
+    &::before {
+        content: "\2013";
+    }
+}
+
+.css_rotatable {
+    transition: transform 0.3s;
+}
+.css_rotate_45deg {
+    transform: rotate(45deg);
+}
+
+.css_icon_devarchy {
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    &,
+    &::before {
+        border: 2px solid #7f7f7f;
+    }
+    /*
+    &::before {
+        position: absolute;
+        display: block;
+        content: "";
+        top: 1px;
+        right: 0px;
+        height: 4px;
+        width: 4px;
+    }
+    */
+    height: 22px;
+    width: 22px;
+}

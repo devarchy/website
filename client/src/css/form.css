@@ -5,6 +5,18 @@
     margin-bottom: 4px;
 }
 
+label.css_da {
+    cursor: pointer;
+    @nest [disabled] & {
+        cursor: default;
+    }
+}
+
+textarea.css_da,
+input.css_da {
+    outline: 0;
+}
+
 fieldset.css_da {
     padding: 0;
     margin: 0;
@@ -21,62 +33,96 @@ fieldset.css_da {
     padding: 7px 10px;
     display: inline-flex;
     border-radius: 3px;
-    & > input {
-        border: 0;
-        background: transparent;
-        padding: 0;
+
+    & > input,
+    & .sel_input_area {
         width: 10px;
         flex: 1;
-        font-family: inherit;
+        & input {
+            width: 100%;
+        }
     }
+
     &,
-    & > input {
+    & input {
         font-size: 14px;
+    }
+
+    & input {
+        border: 0;
+        outline: 0;
+        background: transparent;
+        padding: 0;
+        font-family: inherit;
     }
 
     & > .css_input_wrapper__prefix {
         color: #4f4f4f;
     }
-}
 
-[disabled].css_da {
-    @nest
-    button&,
-    & button {
-        &.css_primary_button > * {
-            opacity: 0.2 !important;
-        }
-        &.css_text_button {
-            /* rgba(51, 51, 51) == #333 */
-            color: rgba(51, 51, 51, 0.2);
-        }
-        &:not(.css_text_button):not(.css_primary_button) > * {
-            opacity: 0.4 !important;
-        }
-        & {
-            cursor: default;
+    & .sel_input_area {
+        position: relative;
+
+        & > .sel_input_placeholder {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            top: 0;
+            left: 0;
+            color: #ccc;
+            pointer-events: none;
+            &::before {
+                content: "Search";
+                display: block;
+            }
+            opacity: 0;
+            /*
+            transition: opacity .2s;
+            */
+            &.sel_input_is_empty {
+                opacity: 1;
+            }
         }
     }
 }
 
+input[type="text"].css_da,
+input:not([type]).css_da
+{
+    vertical-align: middle;
+    padding: 1px 3px;
+    background-color: white;
+    border-radius: 3px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #ccc;
+}
 
-[disabled] button *,
-button[disabled] * {
-    &.css_color_contrib,
-    &.css_color_contrib_dark,
-    &.css_color_contrib_light {
-        color: inherit;
+.css_inline_input {
+    & > input {
+        border: 0;
+        padding: 0 3px;
+        display: inline;
+        background-color: transparent;
+        font-size: inherit;
+        font-family: inherit;
+
     }
+    border-radius: 3px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #ccc;
 }
 
-
-button,
-button > * {
-    transition-property: opacity, color;
-    transition-duration: 0.5s;
+input::placeholder {
+    opacity: 1; /* for firefox */
+    color: #bbb;
 }
 
-.css_saving button.css_async_action_button,
-button.css_saving {
-    @apply --loading_icon__middle;
+input[type="checkbox"].css_da {
+    vertical-align: middle;
+    margin: 0;
+    margin-right: 4px;
+    display: inline-block;
+    margin-top: -2px;
 }

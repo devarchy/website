@@ -19,6 +19,6 @@ function turn_into_error_object(obj, err_obj=new Error()) {
 function is_error_object(obj) {
     return (
         typeof obj === "object" &&
-        error_props.every(prop => typeof obj[prop] === "string")
+        error_props.every(prop => typeof obj[prop] === "string" || !!obj[prop])
     );
 };

@@ -23,11 +23,11 @@ const ResourceRequestListSnippet = React.createClass({
 
 export default {
     component: ResourceRequestListSnippet,
-    get_props: ({resource_list}) => ({
+    get_props: ({tag, resource_list}) => ({
         resource_list:
-            resource_list.map(({resource, category}) => ({
+            resource_list.map(({resource, category_display_name, req_date}) => ({
                 key: resource.key,
-                props: ResourceLineSnippet.get_props({resource, addition_request_view: true, category, is_request: true}),
+                props: ResourceLineSnippet.get_props({tag, resource, addition_request_view: true, category_display_name, req_date, is_request: true, is_need_view: false}),
             })),
     }),
 };

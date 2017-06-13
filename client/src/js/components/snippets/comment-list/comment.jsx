@@ -1,49 +1,57 @@
-import assert from 'assert';
+import assert from 'assertion-soft';
 import React from 'react';
 import classNames from 'classnames';
-
-import pretty_print from '../../../util/pretty_print';
 
 import Thing from '../../../thing';
 import rerender from '../../../rerender';
 
-import ReplyLayoutMixin from '../../mixins//reply-layout';
-import UserTextMixin from '../../mixins/user-text';
+import ReplyLayoutMixin from '../../mixins/reply-layout';
 
 import UserSnippet from '../../snippets/user';
-import LoadingSnippet from '../../snippets/loading';
+import {TextButtonSnippet} from '../../snippets/button';
+import {DescriptionLineUpvotes, DescriptionLineAge, DescriptionLineAuthor, DescriptionLineEdit} from '../../snippets/description-line';
 
 import GoComment from 'react-icons/lib/go/comment';
 
-import CommentListSnippet from './comment-list';
+import CommentList from './comment-list';
 
 const saving_text = Symbol();
 
+
 var CommentSnippet = React.createClass({
     render: function(){ 
-        const thing = this.props.thing;
+        const comment = this.props.comment;
+        assert(comment.type==='comment');
+        assert(comment.votable, comment);
+        assert(comment.commentable, comment);
 
-        assert(thing.votable);
-        assert(thing.commentable);
-
-        const className = [
-            "user-text",
-            this.props.className,
-        ].filter(c => c).join(" ");
-
-        if( thing.is_new && !thing.editing ) {
+        if( comment.is_new && !comment.is_editing ) {
             return <div/>; //not `null` because of react-flip-move
         }
 
         return (
             <ReplyLayoutMixin.component
-              style={this.props.style}
-              className={className}
-              is_root={thing.type === 'reviewpoint'}
-              collapse={this.props.collapse && !thing.editing}
+              className="css_comment"
             >
                 <ReplyLayoutMixin.component.Header>
-                    { this.render_comment() }
+                    <div>
+                        { ! comment.is_editing && <span style={{wordWrap: 'break-word'}}>{comment.text}</span> }
+                        { comment.is_editing && (
+                            <textarea
+                              rows="3"
+                              placeholder={'Comment'}
+                              onChange={ev => comment.draft.text = ev.target.value}
+                              style={{
+                                  width: '100%',
+                                  maxWidth: 500,
+                              }}
+                              className="css_da"
+                              defaultValue={comment.draft.text||comment.text}
+                              disabled={this.state[saving_text]}
+                              autoFocus={true}
+                            />
+                        ) }
+                    </div>
                     { this.render_comment_description_line() }
                     { this.render_comment_edit_buttons() }
                 </ReplyLayoutMixin.component.Header>
@@ -51,36 +59,20 @@ var CommentSnippet = React.createClass({
             </ReplyLayoutMixin.component>
         );
     }, 
-    render_comment: function() { 
-        const thing = this.props.thing;
-        assert(thing.type==='comment');
-        return (
-            <UserTextMixin.component
-              thing={thing}
-              className="comment"
-              text="Comment"
-              ref="usertext"
-              disabled={this.state[saving_text]}
-            >
-                <i className="octicon octicon-comment"/>
-                {/*
-                <GoComment />
-                */}
-            </UserTextMixin.component>
-        );
-    }, 
     render_comment_description_line: (() => { 
 
         const saving_upvote = Symbol();
 
         return function() {
-            if( this.props.thing.editing ) {
+            const comment = this.props.comment;
+
+            if( comment.is_editing ) {
                 return null;
             }
 
             const user_is_logged = !!Thing.things.logged_user;
 
-            const disabled = this.state[saving_upvote] || !user_is_logged;
+            const disabled = this.state[saving_upvote];
 
             return (
                 <fieldset
@@ -91,65 +83,40 @@ var CommentSnippet = React.createClass({
                   )}
                   disabled={disabled}
                 >
-                    { render_info(this) }
+                    <DescriptionLineUpvotes thing={comment} />
+                    <DescriptionLineAuthor thing={comment} />
+                    <DescriptionLineAge thing={comment} />
                     { render_button_upvote(this, disabled) }
                     { render_button_reply(this, disabled) }
-                    { render_button_edit(this, disabled) }
+                    <DescriptionLineEdit thing={comment} element={this} />
                 </fieldset>
             );
         };
 
-        function render_info(that) { 
-            const thing = that.props.thing;
-            assert(!thing.is_new || thing.editing);
-            assert(thing.created_at);
-            const text_age = pretty_print.age(thing.created_at, {verbose: true})+' ago';
-            const text_author = thing.author_name;
-            const number_of_upvotes = thing.votable.upvote.number_of();
-            const text_upvotes = number_of_upvotes===0 ? '' : (number_of_upvotes+' upvote'+(number_of_upvotes===1?'':'s')+' ');
-
-            return (
-                <span>
-                    { text_upvotes }{'by '}{ text_author }{' '}{ text_age }
-                </span>
-            );
-        } 
-
         function render_button_upvote(that, disabled) { 
-            const thing = that.props.thing;
+            const comment = that.props.comment;
 
-            if( is_author(thing) ) {
+            if( comment.is_author ) {
                 return null;
             }
 
-            const already_upvoted = thing.votable.upvote.user_did();
+            const already_upvoted = comment.votable.upvote.user_did();
 
             return (
-                <span>
-                    <Separator />
-                    <button
-                      className={classNames(
-                        "css_text_button",
-                        "css_async_action_button",
-                      )}
+                <span className="css_line_component">
+                    <TextButtonSnippet
+                      is_async={true}
                       onClick={action_toggle_upvote}
                       disabled={disabled}
-                    >
-                        <span
-                          className={classNames(
-                         // !already_upvoted && "css_color_contrib"
-                          )}
-                        >
-                            { already_upvoted ? 'un-' : '' }
-                            upvote
-                        </span>
-                    </button>
+                      is_pressed={already_upvoted}
+                      text={'upvote'}
+                    />
                 </span>
             );
 
             function action_toggle_upvote() {
                 that.setState({[saving_upvote]: true});
-                thing.votable.upvote.toggle()
+                comment.votable.upvote.toggle()
                 .then(() => {
                     that.setState({[saving_upvote]: false});
                     rerender.carry_out();
@@ -159,67 +126,28 @@ var CommentSnippet = React.createClass({
 
         function render_button_reply(that, disabled) { 
             return (
-                <span>
-                    <Separator />
-                    <button
-                      className="css_text_button"
-                      onClick={add_comment}
-                      disabled={disabled}
-                    >
-                        <span className={classNames(
-                          // "css_color_contrib"
-                        )}
-                        >
-                            reply
-                        </span>
-                    </button>
-                </span>
-            );
-            function add_comment() {
-                that.props.thing.commentable.add_comment();
-                rerender.carry_out();
-            }
-        } 
-
-        function render_button_edit(that, disabled) { 
-            if( ! is_author(that.props.thing) ) {
-                return null;
-            }
-
-            return (
-                <span>
-                    <Separator />
-                    <button
-                      className="css_text_button"
+                <span className="css_line_component">
+                    <TextButtonSnippet
+                      text={'reply'}
                       onClick={() => {
-                          that.refs['usertext'].edit();
-                       // that.forceUpdate();
+                          that.props.comment.commentable.add_comment();
                           rerender.carry_out();
                       }}
                       disabled={disabled}
-                    >
-                        edit
-                    </button>
+                    />
                 </span>
-            );
-        } 
-
-        function is_author(thing) { 
-            return (
-                Thing.things.logged_user &&
-                thing.author === Thing.things.logged_user.id
             );
         } 
     })(), 
     render_comment_edit_buttons: (() => { 
         return function() {
-            if( ! this.props.thing.editing ) {
+            if( ! this.props.comment.is_editing ) {
                 return null;
             }
 
             const that = this;
 
-           assert(!!Thing.things.logged_user);
+            assert(!!Thing.things.logged_user);
 
             const disabled = this.state[saving_text];
 
@@ -240,70 +168,58 @@ var CommentSnippet = React.createClass({
 
         function render_button_cancel(that, disabled) { 
             return (
-                <span>
-                    <Separator />
-                    <button
-                      className="css_text_button"
+                <span className="css_line_component">
+                    <TextButtonSnippet
                       onClick={() => {
-                          that.refs['usertext'].cancel();
-                       // that.forceUpdate();
+                          that.props.comment.is_editing = false;
                           rerender.carry_out();
                       }}
                       disabled={disabled}
-                    >
-                        cancel
-                    </button>
+                      text={'cancel'}
+                    />
                 </span>
             );
         } 
 
         function render_button_save(that, disabled) { 
             return (
-                <span>
-                    <Separator />
-                    <button
-                      className="css_text_button css_async_action_button"
+                <span className="css_line_component">
+                    <TextButtonSnippet
+                      is_async={true}
+                      text={ that.props.comment.is_new ? 'post' : 'update' }
                       onClick={() => {
-                          that.setState({[saving_text]:true, saving_bs: true});
-                          console.log('saving...');
-                          that.refs['usertext'].save_text()
+                          that.setState({[saving_text]:true});
+                          that.props.comment.draft.save()
                           .then(() => {
+                              that.props.comment.is_editing = false;
                               that.setState({[saving_text]:false});
                               rerender.carry_out();
                           });
                       }}
                       disabled={disabled}
-                    >
-                        <span className="css_color_contrib">
-                            { that.props.thing.is_new ? 'post' : 'update' }
-                        </span>
-                    </button>
+                    />
                 </span>
             );
         } 
     })(), 
     render_comment_list: function() { 
-        const thing = this.props.thing;
+        const comment = this.props.comment;
 
-        const comments = thing.commentable.comments;
+        const comments = comment.commentable.comments;
 
         if( comments.length === 0 )
             return null;
 
         return (
             <ReplyLayoutMixin.component.Replies
-              wrapper_key={"comments-for-"+thing.key}
+              wrapper_key={"comments-for-"+comment.key}
             >
-                <div className="recursive-block">
-                    <CommentListSnippet.component thing={thing} recursive_call={true} />
-                </div>
+                <CommentList thing={comment} className={"css_comment_replies"} />
             </ReplyLayoutMixin.component.Replies>
         );
     }, 
     getInitialState: () => ({}),
 });
-
-const Separator = () => <div style={{display: 'inline-block', width: 10, height: 1}}/>;
 
 export default {
     component: CommentSnippet,

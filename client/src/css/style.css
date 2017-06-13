@@ -1,10 +1,53 @@
+@import './colors.vars.css';
+@import './layout.vars.css';
+
 html.css_da {
-    background-color: #fefefe;
+    background-color: var(--css_color_background);
 }
 
-.css_info_box {
-    background-color: rgba(0,0,0,0.05);
-    padding: 10px 20px;
-    border-radius: 4px;
-    margin: 20px 0;
+html.is_loading_initial_data {
+    & .sel_category_resources,
+    & .sel_collapsable_adder,
+    & .sel_needs_search_box,
+    & .css_new_requests {
+        cursor: wait;
+        & * {
+            pointer-events: none;
+        }
+    }
+}
+
+.sel_main_view_wrapper {
+    &:after {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 70px;
+        height: 100%;
+        pointer-events: none;
+        background: scrim-gradient(
+            to left,
+            var(--css_color_background),
+            transparent
+        );
+        opacity: 0;
+        transition: opacity var(--css_layout_transition);
+        @nest
+        .css_show_resource_view & {
+            opacity: 1;
+        }
+    }
+    /* can't make .sel_main_view_wrapper positioned while using react-scroll */
+    @nest
+    .css_show_resource_view & {
+        position: relative;
+    }
+}
+
+.sel_highlight {
+    background-color: yellow;
+    color: black;
+    font-weight: normal;
 }

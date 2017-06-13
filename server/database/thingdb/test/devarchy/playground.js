@@ -4,11 +4,13 @@ const assert = require('better-assert');
 const Promise = require('bluebird'); Promise.longStackTraces();
 const Thing = require('./thing')
 const promise = require('../test-promise')(Thing);
-require('../setup')(Thing);
+const setup = require('./setup')(Thing);
 const population = require('./population');
 
 
 describe('ThingDB', () => {
+
+    before(setup);
 
     before(population.create);
 

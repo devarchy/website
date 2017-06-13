@@ -1,0 +1,6 @@
+:root {
+    --css_sidebar_width: 240px;
+    --css_header_height: 116px;
+    --sel_resource_view_width: 600px;
+    --css_layout_transition: 0.7s;
+}

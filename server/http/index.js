@@ -2,14 +2,25 @@ const hapi = require('hapi');
 const auth = require('./auth');
 const api = require('./api');
 const client = require('./client');
+const http_cache = require('./http_cache');
+const static_dir = require('./static_dir');
+const error_handler = require('./error_handler').error_handler;
 const config = require('./config');
 const log = require('./log');
 
 
 const server = new hapi.Server();
 server.connection(connection());
-server.register(plugins(), callback);
 
+const bootup_promise = (
+    server
+    .register(plugins())
+    .then(callback)
+    .then(() => server)
+);
+
+
+module.exports = bootup_promise;
 
 function connection() {
     return {
@@ -44,13 +55,19 @@ function callback(err) {
 
     log(server);
 
+    static_dir(server);
+
+    error_handler(server);
+
+    http_cache(server);
+
     auth(server);
 
     api(server);
 
     client(server);
 
-    server.start(_ => console.log('Server running at:', server.info.uri));
+    return server.start();
 }
 
 // gloabl.server_uri = server.info.uri;

@@ -1,5 +1,3 @@
-import CommentListSnippet from './comment-list.jsx';
-
 if( typeof window !== 'undefined' ) require('./comment-list.css');
-
-export default CommentListSnippet;
+export * from './comment-list.jsx';
+export {default} from './comment-list.jsx';

@@ -1,22 +1,23 @@
 const winston = require('winston');
-const geoip = require('geoip-lite');
+const path = require('path');
 
+const logs_dir_path = path.join(__dirname, '../.logs');
 
 const LISTENERS = [
     {
         filter: event => event.event_type === 'request-error',
         print: event => event.error_info,
-        file: '.logs/errors.txt',
+        file: path.join(logs_dir_path, 'errors.txt'),
     },
     {
         filter: event => event.event_type === 'response',
         print: event => decodeURIComponent(get_prop_val(event, 'url.path')),
-        file: '.logs/responses.txt',
+        file: path.join(logs_dir_path, 'responses.txt'),
     },
     {
         filter: event => event.event_type === 'response' && get_prop_val(event, 'url.path') === '/api/user',
         print: () => 'new visit',
-        file: '.logs/visits.txt',
+        file: path.join(logs_dir_path, 'visits.txt'),
     },
 ];
 
@@ -44,16 +45,12 @@ function on_event(event) {
         const msg = listener.print(event);
 
         const data = {
-            user: get_prop_val(event, 'auth.credentials.github_login') || 'Anonymous',
+            user: get_prop_val(event, 'auth.credentials.provider_username') || 'Anonymous',
         };
 
         const ip = get_prop_val(event, 'info.remoteAddress');
         if( ip ) {
             data.ip = ip;
-            const location = geoip.lookup(ip);
-            if( location ) {
-                data.location = [location.country, location.region, location.city].join(', ');
-            }
         }
 
         listener.logger.info(msg, data);
